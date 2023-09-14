@@ -1,0 +1,32 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+name = "Super Bundle Staging"
+client_id = "693180954f2c0e9af09a587efe0e8830"
+application_url = "https://identification-handling-maryland-sue.trycloudflare.com"
+embedded = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_products"
+
+[auth]
+redirect_urls = [
+  "https://identification-handling-maryland-sue.trycloudflare.com/auth/callback",
+  "https://identification-handling-maryland-sue.trycloudflare.com/auth/shopify/callback",
+  "https://identification-handling-maryland-sue.trycloudflare.com/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2023-07"
+
+[app_proxy]
+url = "https://physical-arrange-php-customized.trycloudflare.com/api/proxy"
+subpath = "proxy"
+prefix = "apps"
+
+[pos]
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "bundled-discount-app.myshopify.com"
