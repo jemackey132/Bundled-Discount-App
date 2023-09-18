@@ -327,3 +327,34 @@ background: #F6FFF9;
 /* shadow-card */
 box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.15), 0px 0px 5px 0px rgba(0, 0, 0, 0.05);
 }
+
+/* Analytics Tab */
+
+.analytics-tab-main{
+  margin-top: 16px;
+
+}
+
+.analytics-filter-div{
+
+}
+
+.analytics-filter-selector .Polaris-Select__Content{
+  background: #F6FFF9;
+  
+  /* shadow-card */
+  box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.15), 0px 0px 5px 0px rgba(0, 0, 0, 0.05);
+
+}
+
+.analytics-filter-selector .Polaris-Select__Icon{
+  visibility: hidden;
+}
+.analytics-cards .Polaris-Box {
+  background: #F6FFF9;
+  box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.15), 0px 0px 5px 0px rgba(0, 0, 0, 0.05);
+}
+
+.analytics-table-pagination .Polaris-ButtonGroup{
+  justify-content: center;
+}

@@ -17,6 +17,7 @@ import {
   Grid,
   Tabs,
   Button,
+  ButtonGroup,
   HorizontalStack,
   HorizontalGrid,
   Box,
@@ -29,6 +30,7 @@ import {
   Avatar,
   Badge,
   Popover,
+  Select,
   ActionList,
   Pagination,
   Modal,
@@ -76,6 +78,63 @@ export default function AdditionalPage() {
     }));
     console.log(active);
   }, []);
+
+
+  const [activeAnalyticsButtonIndex, setActiveAnalyticsButtonIndex] = useState(0);
+  const [filterSelected, setFilterSelected] = useState('begin_to_now');
+
+  const handleFilterSelectChange = useCallback(
+    (value) => setFilterSelected(value),
+    [],
+  );
+  const handleAnalyticsButtonClick = useCallback(
+    (index) => {
+      if (activeAnalyticsButtonIndex === index) return;
+      setActiveAnalyticsButtonIndex(index);
+    },
+    [activeAnalyticsButtonIndex],
+  );
+
+  const analyticsfilteroptions = [
+    {
+      label: 'from beginning to till now',
+      value: 'begin_to_now',
+      prefix: <Icon source={SortMinor} />,
+    },
+    {
+      label: 'from beginning to last month',
+      value: 'begin_to_last_month',
+      prefix: <Icon source={SortMinor} />,
+    },
+  ];
+
+  const analyticstablerows = [
+    [
+      <div className="avatar-row">
+        <Avatar customer name="Farrah" />
+        <Avatar customer name="Farrah" />
+      </div>,
+      "bundle #1",
+      <Badge status="success">Active</Badge>,
+      "$ 0",
+      "0",
+      "0",
+      "0",
+    ],
+    [
+      <div className="avatar-row">
+        <Avatar customer name="Farrah" />
+        <Avatar customer name="Farrah" />
+      </div>,
+      "bundle #2",
+      <Badge>Draft</Badge>,
+      "$ 0",
+      "0",
+      "0",
+      "0",
+    ],
+  ];
+
 
   const [textFieldValue, setTextFieldValue] = useState("2.00");
 
@@ -864,6 +923,110 @@ export default function AdditionalPage() {
                     <Divider />
                   </VerticalStack>
                 </>
+                )}
+                {selected == 3 && (
+                  <div className="analytics-tab-main">
+                  <VerticalStack gap="4">
+                  <Text as="h1" variant="headingLg">
+                        Analytics
+                  </Text>
+                  <ButtonGroup segmented>
+                    <Button
+                      pressed={activeAnalyticsButtonIndex === 0}
+                      onClick={() => handleAnalyticsButtonClick(0)}
+                    >
+                      Based on bundle
+                    </Button>
+                    <Button
+                      pressed={activeAnalyticsButtonIndex === 1}
+                      onClick={() => handleAnalyticsButtonClick(1)}
+                    >
+                      Based on order 
+                    </Button>
+                  </ButtonGroup>
+                  </VerticalStack>
+                  <div className="analytics-filter-div" style={{ marginBottom:"33px", marginTop:"8px"}}>
+                    <HorizontalStack gap="5" blockAlign="center">
+                      <Text variant="bodyMd" as="p">Data range</Text>
+                      <div className="analytics-filter-selector">
+                      <Select
+                        label="Analytics filter"
+                        labelHidden
+                        options={analyticsfilteroptions}
+                        onChange={handleFilterSelectChange}
+                        value={filterSelected}
+                      />
+                      </div>
+                    </HorizontalStack>
+                  </div>
+                  <div className="analytics-cards" style={{ marginBottom: "40px"}}>
+                  <HorizontalGrid columns={4} gap="5">
+                    <Card>
+                      <VerticalStack gap="4" inlineAlign="center">
+                        <Text variant="bodyMd" as="p">Sales value on bundles</Text>
+                        <Text variant="bodyLg" as="p">$ 0</Text>
+                      </VerticalStack>
+                    </Card>
+                    <Card>
+                      <VerticalStack gap="4" inlineAlign="center">
+                        <Text variant="bodyMd" as="p">Numbers of sold bundles</Text>
+                        <Text variant="bodyLg" as="p">0</Text>
+                      </VerticalStack>
+                    </Card>
+                    <Card>
+                      <VerticalStack gap="4" inlineAlign="center">
+                        <Text variant="bodyMd" as="p">Bundles view</Text>
+                        <Text variant="bodyLg" as="p">0</Text>
+                      </VerticalStack>
+                    </Card>
+                    <Card>
+                      <VerticalStack gap="4" inlineAlign="center">
+                        <Text variant="bodyMd" as="p">Bundles clicks</Text>
+                        <Text variant="bodyLg" as="p">0</Text>
+                      </VerticalStack>
+                    </Card>
+                  </HorizontalGrid>
+                  </div>
+                  <div className="bundle-table">
+                    <DataTable
+                    columnContentTypes={[
+                    "text",
+                    "text",
+                    "text",
+                    "text",
+                    "text",
+                    "text",
+                    "text",
+                    ]}
+                    headings={[
+                    "Bundle items",
+                    "Bundle name",
+                    "Status",
+                    "Sales value",
+                    "Sales number",
+                    "Clicks",
+                    "Views"
+                    ]}
+                    rows={analyticstablerows}
+                    footerContent={
+                      <div className="analytics-table-pagination">
+                        <Pagination
+                          label="Showing page 1 of 1"
+                          hasPrevious
+                          onPrevious={() => {
+                            console.log('Previous');
+                          }}
+                          hasNext
+                          onNext={() => {
+                            console.log('Next');
+                          }}
+                        />
+                      </div>
+                    }
+                    hasZebraStripingOnData
+                    />
+                  </div>
+                  </div>
                 )}
                 {selected == 4 && (
                   <>
