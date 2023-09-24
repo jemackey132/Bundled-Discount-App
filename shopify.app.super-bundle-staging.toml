@@ -2,7 +2,7 @@
 
 name = "Super Bundle Staging"
 client_id = "693180954f2c0e9af09a587efe0e8830"
-application_url = "https://composition-regardless-salem-rebel.trycloudflare.com"
+application_url = "https://opera-aj-arm-feedback.trycloudflare.com"
 embedded = true
 
 [access_scopes]
@@ -11,16 +11,16 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://composition-regardless-salem-rebel.trycloudflare.com/auth/callback",
-  "https://composition-regardless-salem-rebel.trycloudflare.com/auth/shopify/callback",
-  "https://composition-regardless-salem-rebel.trycloudflare.com/api/auth/callback"
+  "https://opera-aj-arm-feedback.trycloudflare.com/auth/callback",
+  "https://opera-aj-arm-feedback.trycloudflare.com/auth/shopify/callback",
+  "https://opera-aj-arm-feedback.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
 api_version = "2023-07"
 
 [app_proxy]
-url = "https://composition-regardless-salem-rebel.trycloudflare.com"
+url = "https://opera-aj-arm-feedback.trycloudflare.com"
 subpath = "proxy"
 prefix = "apps"
 

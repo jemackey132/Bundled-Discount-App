@@ -20,3 +20,29 @@ model Session {
   accessToken String
   userId      BigInt?
 }
+
+model Bundle {
+  id                   Int     @id @default(autoincrement())
+  shop                 String
+  bundle_title         String
+  bundle_type          String
+  bundle_name          String
+  bundle_image         String
+  bundle_discount      Boolean @default(true)
+  bundle_discount_type String
+  bunde_discount_value String
+  bundle_status        Boolean @default(true)
+  bundle_items         Json
+  bundle_time_status   Boolean @default(false)
+  bundle_start_time    String
+  bundle_start_date    String
+  bundle_end_status    Boolean @default(false)
+  bundle_end_time      String
+  bundle_end_date      String
+  bundle_views         Int     @default(0)
+  bundle_clicks        Int     @default(0)
+  bundle_orders        Int     @default(0)
+  bundle_sales         Int     @default(0)
+  created_at          DateTime  @default(now()) @map("created_at") // Add created_at field with current timestamp
+  updated_at          DateTime  @updatedAt @map("updated_at") // Add updated_at field
+}

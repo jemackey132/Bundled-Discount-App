@@ -54,6 +54,7 @@ export default function AdditionalPage() {
     bundle_end_status: false,
     bundle_end_time: "",
     bundle_end_date: "",
+    bundle_type: "fixed_bundle",
   });
   const [discountType, setDiscountType] = useState("percentage");
 
@@ -399,7 +400,7 @@ export default function AdditionalPage() {
                           type="date"
                           label="End Date"
                           autoComplete="off"
-                          value={formState.bundle_start_date}
+                          value={formState.bundle_end_date}
                           onChange={(value) =>
                             handleState("bundle_end_date", value)
                           }
@@ -408,7 +409,7 @@ export default function AdditionalPage() {
                           type="time"
                           label="End Time"
                           autoComplete="off"
-                          value={formState.bundle_start_time}
+                          value={formState.bundle_end_time}
                           onChange={(value) =>
                             handleState("bundle_end_time", value)
                           }
