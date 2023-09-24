@@ -6,7 +6,6 @@ import {
   useNavigation,
   useSubmit,
 } from "@remix-run/react";
-import welcome from "../../public/finances_minor.svg";
 import { CancelMajor } from "@shopify/polaris-icons";
 import {
   Page,
@@ -35,13 +34,10 @@ import { authenticate } from "../shopify.server";
 import shopify from "../shopify.server";
 
 export default function AdditionalPage() {
-  const [textFieldValue, setTextFieldValue] = useState("0");
-
   const [bundlepopover, setBundlePopover] = useState(false);
   const [bundlestatus, setBundleStatus] = useState(false);
   const [products, setProducts] = useState([]);
-  const [query,setQuery] = useState('');
-  const [bschecked, setBSChecked] = useState(false);
+  const [query, setQuery] = useState("");
   const [formState, setFormState] = useState({
     bundle_id: 0,
     bundle_title: "",
@@ -54,22 +50,22 @@ export default function AdditionalPage() {
     bundle_items: [],
     bundle_time_status: false,
     bundle_start_time: "",
+    bundle_start_date: "",
+    bundle_end_status: false,
     bundle_end_time: "",
+    bundle_end_date: "",
   });
   const [discountType, setDiscountType] = useState("percentage");
-  // const [discountType, setDiscountType] = useState('percentage');
 
-  // const selected = await shopify.resourcePicker({type: 'product'});
-
-  const [discountselector, setDiscountSelector] = useState("10");
+  const handleState = (type, value) => {
+    setFormState((prevState) => ({
+      ...prevState,
+      [type]: value,
+    }));
+  };
 
   const handleDiscountSelectChange = useCallback(
     (value) => setDiscountValue(value),
-    []
-  );
-
-  const handleChange = useCallback(
-    (newChecked) => setBSChecked(newChecked),
     []
   );
 
@@ -91,31 +87,13 @@ export default function AdditionalPage() {
     [bundlestatus]
   );
 
-  const handleTextFieldChange = useCallback(
-    (value) => setQuery(value),
-    []
-  );
-
-  const [pselected, setPSelected] = useState("today");
-
-  const handleSelectChange = useCallback((value) => setPSelected(value), []);
-
-  const options = [
-    { label: "Product page", value: "today" },
-    { label: "Product 1", value: "yesterday" },
-    { label: "Product 2", value: "lastWeek" },
-  ];
-
-  const discountoptions = [
-    { label: "10%", value: "10" },
-    { label: "20%", value: "20" },
-  ];
+  const handleTextFieldChange = useCallback((value) => setQuery(value), []);
 
   const [discountValue, setDiscountValue] = useState("");
 
   const bundlestatusactivator = (
     <Button onClick={toggleBundlePopover} disclosure>
-      {bundlestatus ? "Active" : "Inactive"}
+      {formState.bundle_status ? "Active" : "Inactive"}
     </Button>
   );
 
@@ -123,7 +101,7 @@ export default function AdditionalPage() {
     console.log("clicked");
     const getProducts = await window.shopify.resourcePicker({
       type: "product",
-      query:query,
+      query: query,
       action: "select", // customized action verb, either 'select' or 'add',
     });
 
@@ -141,35 +119,23 @@ export default function AdditionalPage() {
 
       // Use the concat method to create a new array with the added product
       const isDuplicate = products.some(
+        // @ts-ignore
         (product) => product.id === newProduct.id
       );
 
       if (!isDuplicate) {
-        const updatedProducts = products.concat(newProduct);
+        var updatedProducts = [];
+        // @ts-ignore
+        updatedProducts = products.concat(newProduct);
         setProducts(updatedProducts);
       }
-
-      console.log(id);
-      // store multiple object in array state
-      // setFormState({
-      //   ...formState,
-      //   productId: id,
-      //   productVariantId: variants[0].id,
-      //   productTitle: title,
-      //   productHandle: handle,
-      //   productAlt: images[0]?.altText,
-      //   productImage: images[0]?.originalSrc,
-      // });
     }
   }
 
   const removeProduct = (productId) => {
-    // Filter out the product with the specified ID
-    const updatedProducts = products.filter(
-      (product) => product.id !== productId
-    );
-
-    // Update the state with the new array of products
+    var updatedProducts = [];
+    // @ts-ignore
+    updatedProducts = products.filter((product) => product.id !== productId);
     setProducts(updatedProducts);
   };
 
@@ -213,29 +179,7 @@ export default function AdditionalPage() {
                       <Text variant="headingMd" as="h2">
                         Bundled products
                       </Text>
-                      {/* <div
-                        style={{ color: "#008060" }}
-                        className="bundle-product-header-button"
-                      >
-                        <Button monochrome outline onClick={window.shopify.Fullscreen.dispatch(Fullscreen.Action.ENTER);}>
-                          <HorizontalStack gap="2" align="center">
-                            <Icon source={FinancesMinor} />
-                            <Text variant="bodyMd" as="p">
-                              Enter full screen
-                            </Text>
-                          </HorizontalStack>
-                        </Button>
-                      </div> */}
                     </HorizontalStack>
-                    {/* <div className="pselector">
-                      <Select
-                        label="Product selector"
-                        labelHidden={true}
-                        options={options}
-                        onChange={handleSelectChange}
-                        value={pselected}
-                      />
-                    </div> */}
                     {products.length == 0 ? (
                       <div className="psection-emptystate">
                         <EmptyState
@@ -266,7 +210,7 @@ export default function AdditionalPage() {
                           return (
                             <ResourceItem
                               id={id}
-                              // url={url}
+                              onClick={() => console.log()}
                               verticalAlignment="center"
                               media={media}
                               accessibilityLabel={`View details for ${name}`}
@@ -314,6 +258,10 @@ export default function AdditionalPage() {
                             helpText="Your customers won't see this name. This name is used for you to identify this
                                 bundle."
                             autoComplete="off"
+                            value={formState.bundle_name}
+                            onChange={(value) =>
+                              handleState("bundle_name", value)
+                            }
                           />
                           <TextField
                             label="Title"
@@ -321,6 +269,10 @@ export default function AdditionalPage() {
                             helpText="Your customers will see this at the top of the bundle displays. You can choose
                                 the best phrase or sentence to entice your customers to buy the bundle."
                             autoComplete="off"
+                            value={formState.bundle_title}
+                            onChange={(value) =>
+                              handleState("bundle_title", value)
+                            }
                           />
                         </VerticalStack>
                       </div>
@@ -339,11 +291,13 @@ export default function AdditionalPage() {
                             items={[
                               {
                                 content: "Active",
-                                onAction: () => handleBundleStatus("active"),
+                                onAction: () =>
+                                  handleState("bundle_status", true),
                               },
                               {
                                 content: "Inactive",
-                                onAction: () => handleBundleStatus("inactive"),
+                                onAction: () =>
+                                  handleState("bundle_status", false),
                               },
                             ]}
                           />
@@ -351,62 +305,11 @@ export default function AdditionalPage() {
                       </div>
                       <Divider />
                     </VerticalStack>
-                    {/* <div className="bundle-status-second-section">
-                          <VerticalStack inlineAlign="start" gap="2">
-                            <Text variant="bodyLg" as="p">
-                              Displays
-                            </Text>
-                            <Text variant="bodyMd" as="p">
-                              Here you can choose where to display this bundle.
-                            </Text>
-                            <Button plain>See all</Button>
-                          </VerticalStack>
-                        </div>
-                        <Divider />
-                        <div className="bundle-status-card-checkbox">
-                          <Checkbox
-                            label="Basic checkbox"
-                            checked={bschecked}
-                            onChange={handleChange}
-                          />
-                        </div>
-                        <Divider />
-                        <div className="bundle-status-card-checkbox">
-                          <Checkbox
-                            label="Basic checkbox"
-                            checked={bschecked}
-                            onChange={handleChange}
-                          />
-                        </div>
-                        <Divider />
-                        <div className="bundle-status-card-checkbox">
-                          <Checkbox
-                            label="Basic checkbox"
-                            checked={bschecked}
-                            onChange={handleChange}
-                          />
-                        </div> */}
                   </VerticalStack>
                 </Card>
               </div>
             </HorizontalGrid>
           </Layout.Section>
-
-          {/* <Layout.Section>
-                <Card>
-                  <Text variant="headingMd" as="h2">
-                    Bundle as a product
-                  </Text>
-                  <div className="bundle-as-product-checkbox">
-                    <Checkbox
-                      label="Make a product from this bundle"
-                      checked={bschecked}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </Card>
-              </Layout.Section> */}
-
           <Layout.Section>
             <HorizontalGrid columns={2} gap="8">
               <div className="card-bg">
@@ -439,33 +342,6 @@ export default function AdditionalPage() {
                             }
                           />
                         </div>
-                        {/* <div className="discount-card-checkbox">
-                          <Checkbox
-                            label="Hintonburg"
-                            checked={bschecked}
-                            onChange={handleChange}
-                          />
-                        </div> */}
-                        {/* <div className="discount-card-checkbox">
-                          <Checkbox
-                            label="Downtown"
-                            checked={bschecked}
-                            onChange={handleChange}
-                          />
-                        </div>
-                        <div className="discount-card-checkbox">
-                          <Checkbox
-                            label="Richmond Hall"
-                            checked={bschecked}
-                            onChange={handleChange}
-                          />
-                        </div> */}
-                        {/* <Select
-                          label="Discount value"
-                          options={discountoptions}
-                          onChange={handleDiscountSelectChange}
-                          value={discountselector}
-                        /> */}
                         <TextField
                           label="Discount value"
                           type="number"
@@ -480,34 +356,6 @@ export default function AdditionalPage() {
                 </Card>
               </div>
               <div className="card-bg">
-                {/* <Card>
-                  <VerticalStack>
-                    <VerticalStack align="space-between" gap="4">
-                      <Text variant="headingMd" as="h2">
-                        General
-                      </Text>
-                      <div className="general-card-fields">
-                        <VerticalStack gap="4">
-                          <TextField
-                            label="Name"
-                            type="text"
-                            placeholder="Bundle #2"
-                            helpText="Your customers won't see this name. This name is used for you to identify this
-                                bundle."
-                            autoComplete="off"
-                          />
-                          <TextField
-                            label="Title"
-                            type="text"
-                            helpText="Your customers will see this at the top of the bundle displays. You can choose
-                                the best phrase or sentence to entice your customers to buy the bundle."
-                            autoComplete="off"
-                          />
-                        </VerticalStack>
-                      </div>
-                    </VerticalStack>
-                  </VerticalStack>
-                </Card> */}
                 <Card>
                   <Text variant="headingMd" as="h2">
                     Bundle time
@@ -518,50 +366,62 @@ export default function AdditionalPage() {
                         type="date"
                         label="Start Date"
                         autoComplete="off"
+                        value={formState.bundle_start_date}
+                        onChange={(value) =>
+                          handleState("bundle_start_date", value)
+                        }
                       />
                       <TextField
                         type="time"
                         label="Start Time"
                         autoComplete="off"
+                        value={formState.bundle_start_time}
+                        onChange={(value) =>
+                          handleState("bundle_start_time", value)
+                        }
                       />
                     </HorizontalGrid>
                   </div>
                   <Checkbox
                     label="Set end time"
-                    checked={bschecked}
-                    onChange={handleChange}
+                    checked={formState.bundle_end_status}
+                    onChange={() =>
+                      handleState(
+                        "bundle_end_status",
+                        !formState.bundle_end_status
+                      )
+                    }
                   />
+                  {formState.bundle_end_status && (
+                    <div className="bundle-time-date">
+                      <HorizontalGrid columns={2} gap="6">
+                        <TextField
+                          type="date"
+                          label="End Date"
+                          autoComplete="off"
+                          value={formState.bundle_start_date}
+                          onChange={(value) =>
+                            handleState("bundle_end_date", value)
+                          }
+                        />
+                        <TextField
+                          type="time"
+                          label="End Time"
+                          autoComplete="off"
+                          value={formState.bundle_start_time}
+                          onChange={(value) =>
+                            handleState("bundle_end_time", value)
+                          }
+                        />
+                      </HorizontalGrid>
+                    </div>
+                  )}
                 </Card>
               </div>
             </HorizontalGrid>
           </Layout.Section>
 
-          <Layout.Section>
-            {/* <Card>
-              <Text variant="headingMd" as="h2">
-                Bundle time
-              </Text>
-              <div className="bundle-time-date">
-                <HorizontalGrid columns={2} gap="6">
-                  <TextField
-                    type="date"
-                    label="Start Date"
-                    autoComplete="off"
-                  />
-                  <TextField
-                    type="time"
-                    label="Start Time"
-                    autoComplete="off"
-                  />
-                </HorizontalGrid>
-              </div>
-              <Checkbox
-                label="Set end time"
-                checked={bschecked}
-                onChange={handleChange}
-              />
-            </Card> */}
-          </Layout.Section>
+          <Layout.Section></Layout.Section>
           <Layout.Section>
             <HorizontalStack gap="4">
               <div style={{ color: "#bf0711" }}>
