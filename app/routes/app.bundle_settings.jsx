@@ -66,7 +66,7 @@ export default function AdditionalPage() {
 
     return (
         <Page
-      backAction={{ content: "Settings", url: "#" }}
+      backAction={{ content: "Settings", url: "/app/additional" }}
       title="Bundle settings"
     >
       <div className="bundle-setting-main">

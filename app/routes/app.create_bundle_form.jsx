@@ -88,7 +88,7 @@ export default function AdditionalPage() {
     );
 
     return (
-        <Page backAction={{ content: "Settings", url: "#" }} title="Create Bundle">
+        <Page backAction={{ content: "Settings", url: "/app/additional" }} title="Create Bundle">
           <div className="create-bundle-form">
             <Layout>
               <Layout.Section>

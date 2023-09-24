@@ -106,7 +106,7 @@ export default function Index() {
       <div className="welcome-card">
         <Card>
           <EmptyState
-            action={{ content: "Begin" }}
+            action={{ content: "Begin", url:"/app/additional" }}
             image={welcome}
           >
           <p className="welcome-heading">Welcome!</p>
