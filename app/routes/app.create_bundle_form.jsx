@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState } from "react";
 import { json } from "@remix-run/node";
 // import { json } from "@remix-run/express";
+import { cors } from "remix-utils";
 import { created } from "remix-utils";
 import prisma from "../db.server";
 import {
@@ -36,40 +37,46 @@ import { FinancesMinor, SearchMinor } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import shopify from "../shopify.server";
 
-export async function action({ request }) {
-  const { session } = await authenticate.admin(request);
-  const { shop } = session;
-  console.log(session);
-  console.log(shop);
-  const data = await request.json();
+import { createProduct, addBundle, addComponents } from "../bundle.server";
 
-  console.log(data);
+export async function action({ request }) {
+  const { admin, session } = await authenticate.admin(request);
+  const { shop } = session;
+  const data = await request.json();
 
   data.shop = shop;
   delete data.bundle_id;
-  const createdBundle = await prisma.bundle.create({
-    data: data,
-  });
+  await addBundle(data);
+  const createBundle = await createProduct(
+    { title: data.bundle_title, price: 10 },
+    admin.graphql
+  );
 
-  return created(createdBundle);
+  let productId = createBundle.variants.edges[0].node.id;
+  let productPrice = createBundle.variants.edges[0].node.price;
+
+  console.log(productId, productPrice);
+
+  let productVariant = [];
+
+  for (let i = 0; i < data.bundle_items.length; i++) {
+    productVariant.push({
+      id: data.bundle_items[i].vid,
+      quantity: 1,
+    });
+  }
+
+  const addVariants = await addComponents(
+    { parentProductVariantId: productId, productVariant: productVariant },
+    admin.graphql
+  );
+  console.log(addVariants);
+
+  return created(addVariants);
 }
-
-// export const loader = async ({ request }) => {
-
-//   const { admin, session } = await authenticate.admin(request);
-
-//   const bundles = await prisma.bundle.findMany({
-//     where: { shop:session.shop }, // Add the appropriate condition here
-//   });
-
-//   return json(bundles);
-// };
 
 export default function AdditionalPage() {
   const actionData = useActionData();
-  // const bundleData = useLoaderData();
-
-  // console.log(bundleData)
 
   const [bundlepopover, setBundlePopover] = useState(false);
   const [bundlestatus, setBundleStatus] = useState(false);
@@ -119,11 +126,10 @@ export default function AdditionalPage() {
     bundle_end_time: "End Time",
     bundle_end_date: "End Date",
   };
-  
 
   const [errors, setErrors] = useState(initialErrorsState);
 
-  console.log(actionData);
+  // console.log(actionData);
 
   function isFormValid(formState) {
     // Define an array of field names that are considered optional
@@ -381,7 +387,11 @@ export default function AdditionalPage() {
                           <TextField
                             label="Name"
                             type="text"
-                            error={errors['bundle_name'] ? errors['bundle_name']:false}
+                            error={
+                              errors["bundle_name"]
+                                ? errors["bundle_name"]
+                                : false
+                            }
                             placeholder="Bundle #2"
                             helpText="Your customers won't see this name. This name is used for you to identify this
                                 bundle."

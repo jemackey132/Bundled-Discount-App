@@ -45,14 +45,13 @@ import {
 import { SearchMinor, SortMinor } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { getBundle } from "../bundle.server";
 
 export const loader = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
 
-  const bundles = await prisma.bundle.findMany({
-    where: { shop: session.shop }, // Add the appropriate condition here
-  });
-
+  const bundles = await getBundle(session.shop);
+  // console.log()
   return json(bundles);
 };
 
@@ -439,7 +438,12 @@ export default function AdditionalPage() {
       bundle: (
         <div className="avatar-row">
           {bundle.bundle_items.map((item) => (
-            <Avatar customer key={item.id} name={item.name} source={item.image} />
+            <Avatar
+              customer
+              key={item.id}
+              name={item.name}
+              source={item.image}
+            />
           ))}
         </div>
       ),
