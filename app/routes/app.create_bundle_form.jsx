@@ -94,12 +94,47 @@ export default function AdditionalPage() {
     bundle_type: "fixed_bundle",
   });
 
+  const initialErrorsState = {
+    bundle_id: "",
+    bundle_title: "",
+    bundle_name: "",
+    bundle_image: "",
+    bundle_discount_type: "",
+    bunde_discount_value: "",
+    bundle_items: "",
+    bundle_start_time: "",
+    bundle_start_date: "",
+    bundle_end_time: "",
+    bundle_end_date: "",
+  };
+
+  const fieldLabels = {
+    bundle_title: "Bundle Title",
+    bundle_name: "Bundle Name",
+    bundle_discount_type: "Bundle Discount Type",
+    bunde_discount_value: "Bundle Discount Value",
+    bundle_items: "Bundle Items",
+    bundle_start_time: "Start Time",
+    bundle_start_date: "Start Date",
+    bundle_end_time: "End Time",
+    bundle_end_date: "End Date",
+  };
+  
+
+  const [errors, setErrors] = useState(initialErrorsState);
+
   console.log(actionData);
 
   function isFormValid(formState) {
     // Define an array of field names that are considered optional
-    const optionalFields = ["bundle_image"];
+    const optionalFields = [
+      "bundle_image",
+      "bundle_end_status",
+      "bundle_end_time",
+      "bundle_end_date",
+    ];
 
+    const errors = {};
     // Iterate through each key in the formState object
     for (const key in formState) {
       // Check if the value is empty and the field is not in the optionalFields array
@@ -108,17 +143,20 @@ export default function AdditionalPage() {
           (Array.isArray(formState[key]) && formState[key].length === 0)) &&
         !optionalFields.includes(key)
       ) {
-        return `Field '${key}' is required.`; // Return an error message
+        // return `Field '${key}' is required.`; // Return an error message
+        errors[key] = `Field '${key}' is required.`;
       }
     }
-    return null; // If all non-optional fields are non-empty, return null (no error)
+    return Object.keys(errors).length === 0 ? null : errors;
+    // return null; // If all non-optional fields are non-empty, return null (no error)
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault(); // Prevent the default form submission behavior
     const validationError = isFormValid(formState);
     if (validationError) {
-      console.error(validationError);
+      // console.error(validationError);
+      setErrors(validationError);
     } else {
       try {
         const response = await fetch("/app/create_bundle_form", {
@@ -199,6 +237,7 @@ export default function AdditionalPage() {
       // Create a new product object
       const newProduct = {
         id: id,
+        vid: variants[0].id,
         url: handle,
         name: title,
         image: images[0]?.originalSrc,
@@ -215,6 +254,7 @@ export default function AdditionalPage() {
         // @ts-ignore
         updatedProducts = products.concat(newProduct);
         setProducts(updatedProducts);
+        handleState("bundle_items", updatedProducts);
       }
     }
   }
@@ -341,6 +381,7 @@ export default function AdditionalPage() {
                           <TextField
                             label="Name"
                             type="text"
+                            error={errors['bundle_name'] ? errors['bundle_name']:false}
                             placeholder="Bundle #2"
                             helpText="Your customers won't see this name. This name is used for you to identify this
                                 bundle."
@@ -522,7 +563,11 @@ export default function AdditionalPage() {
             </HorizontalGrid>
           </Layout.Section>
 
-          <Layout.Section></Layout.Section>
+          <Layout.Section>
+            {Object.keys(errors).map((fieldName) => (
+              <div key={fieldName}>{errors[fieldName]}</div>
+            ))}
+          </Layout.Section>
           <Layout.Section>
             <HorizontalStack gap="4">
               <div style={{ color: "#bf0711" }}>

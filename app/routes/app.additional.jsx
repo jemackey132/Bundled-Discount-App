@@ -439,7 +439,7 @@ export default function AdditionalPage() {
       bundle: (
         <div className="avatar-row">
           {bundle.bundle_items.map((item) => (
-            <Avatar customer key={item.id} name={item.name} />
+            <Avatar customer key={item.id} name={item.name} source={item.image} />
           ))}
         </div>
       ),
@@ -461,7 +461,7 @@ export default function AdditionalPage() {
     const mappedRows = bundleData.map((bundle) => [
       <div className="avatar-row">
         {bundle.bundle_items.map((item) => (
-          <Avatar customer key={item.id} name={item.name} />
+          <Avatar customer key={item.id} name={item.name} source={item.image} />
         ))}
       </div>,
       bundle.bundle_name,
