@@ -1,5 +1,8 @@
 import { useEffect, useCallback, useState } from "react";
 import { json } from "@remix-run/node";
+// import { json } from "@remix-run/express";
+import { created } from "remix-utils";
+import prisma from "../db.server";
 import {
   useActionData,
   useLoaderData,
@@ -33,7 +36,41 @@ import { FinancesMinor, SearchMinor } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import shopify from "../shopify.server";
 
+export async function action({ request }) {
+  const { session } = await authenticate.admin(request);
+  const { shop } = session;
+  console.log(session);
+  console.log(shop);
+  const data = await request.json();
+
+  console.log(data);
+
+  data.shop = shop;
+  delete data.bundle_id;
+  const createdBundle = await prisma.bundle.create({
+    data: data,
+  });
+
+  return created(createdBundle);
+}
+
+// export const loader = async ({ request }) => {
+
+//   const { admin, session } = await authenticate.admin(request);
+
+//   const bundles = await prisma.bundle.findMany({
+//     where: { shop:session.shop }, // Add the appropriate condition here
+//   });
+
+//   return json(bundles);
+// };
+
 export default function AdditionalPage() {
+  const actionData = useActionData();
+  // const bundleData = useLoaderData();
+
+  // console.log(bundleData)
+
   const [bundlepopover, setBundlePopover] = useState(false);
   const [bundlestatus, setBundleStatus] = useState(false);
   const [products, setProducts] = useState([]);
@@ -44,7 +81,7 @@ export default function AdditionalPage() {
     bundle_name: "",
     bundle_image: "",
     bundle_discount: true,
-    bundle_discount_type: "",
+    bundle_discount_type: "percentage",
     bunde_discount_value: "",
     bundle_status: true,
     bundle_items: [],
@@ -56,6 +93,55 @@ export default function AdditionalPage() {
     bundle_end_date: "",
     bundle_type: "fixed_bundle",
   });
+
+  console.log(actionData);
+
+  function isFormValid(formState) {
+    // Define an array of field names that are considered optional
+    const optionalFields = ["bundle_image"];
+
+    // Iterate through each key in the formState object
+    for (const key in formState) {
+      // Check if the value is empty and the field is not in the optionalFields array
+      if (
+        ((typeof formState[key] === "string" && formState[key].trim() === "") ||
+          (Array.isArray(formState[key]) && formState[key].length === 0)) &&
+        !optionalFields.includes(key)
+      ) {
+        return `Field '${key}' is required.`; // Return an error message
+      }
+    }
+    return null; // If all non-optional fields are non-empty, return null (no error)
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault(); // Prevent the default form submission behavior
+    const validationError = isFormValid(formState);
+    if (validationError) {
+      console.error(validationError);
+    } else {
+      try {
+        const response = await fetch("/app/create_bundle_form", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formState), // Serialize the form data
+        });
+
+        if (response.ok) {
+          // Handle success (e.g., show a success message, reset the form)
+          console.log("Bundle created successfully!");
+        } else {
+          // Handle errors (e.g., show an error message)
+          console.error("Error creating bundle:", response.status);
+        }
+      } catch (error) {
+        console.error("An error occurred:", error);
+      }
+    }
+  };
+
   const [discountType, setDiscountType] = useState("percentage");
 
   const handleState = (type, value) => {
@@ -328,27 +414,41 @@ export default function AdditionalPage() {
                         <div className="discount-card-checkbox">
                           <Checkbox
                             label="Fixed"
-                            checked={discountType == "fixed" ? true : false}
-                            onChange={() => handleChangeDiscountType("fixed")}
+                            checked={
+                              formState.bundle_discount_type == "fixed"
+                                ? true
+                                : false
+                            }
+                            onChange={() =>
+                              handleState("bundle_discount_type", "fixed")
+                            }
                           />
                         </div>
                         <div className="discount-card-checkbox">
                           <Checkbox
                             label="Percentage"
                             checked={
-                              discountType == "percentage" ? true : false
+                              formState.bundle_discount_type == "percentage"
+                                ? true
+                                : false
                             }
                             onChange={() =>
-                              handleChangeDiscountType("percentage")
+                              handleState("bundle_discount_type", "percentage")
                             }
                           />
                         </div>
                         <TextField
                           label="Discount value"
                           type="number"
-                          value={discountValue}
-                          onChange={handleDiscountSelectChange}
-                          prefix={discountType == "fixed" ? "$" : "%"}
+                          value={formState.bunde_discount_value}
+                          onChange={(value) =>
+                            handleState("bunde_discount_value", value)
+                          }
+                          prefix={
+                            formState.bundle_discount_type == "fixed"
+                              ? "$"
+                              : "%"
+                          }
                           autoComplete="off"
                         />
                       </VerticalStack>
@@ -430,7 +530,9 @@ export default function AdditionalPage() {
                   Delete bundle
                 </Button>
               </div>
-              <Button primary>Save</Button>
+              <Button primary onClick={handleSubmit}>
+                Save
+              </Button>
             </HorizontalStack>
           </Layout.Section>
         </Layout>

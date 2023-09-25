@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { redirect } from "react-router-dom";
@@ -6,6 +7,7 @@ import { json } from "@remix-run/node";
 import {
   useActionData,
   useLoaderData,
+  useFetcher,
   useNavigation,
   useSubmit,
 } from "@remix-run/react";
@@ -42,12 +44,42 @@ import {
 } from "@shopify/polaris";
 import { SearchMinor, SortMinor } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
+
+export const loader = async ({ request }) => {
+  const { admin, session } = await authenticate.admin(request);
+
+  const bundles = await prisma.bundle.findMany({
+    where: { shop: session.shop }, // Add the appropriate condition here
+  });
+
+  return json(bundles);
+};
 
 export default function AdditionalPage() {
   const cnav = useNavigate();
+  const fetcher = useFetcher();
 
   const [selected, setSelected] = useState(0);
   const [tselected, setTSelected] = useState(0);
+
+  const bundleData = useLoaderData();
+
+  const data = fetcher.data || bundleData;
+
+  // const revalidate = () => {
+  //   if (document.visibilityState === "visible") {
+  //     fetcher.load("/app/additional");
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   document.addEventListener("visibilitychange", revalidate);
+
+  //   return () => document.removeEventListener("visibilitychange", revalidate);
+  // }, []);
+
+  console.log(bundleData);
 
   const [bundlepopup, setBundlePopup] = useState(false);
 
@@ -176,7 +208,8 @@ export default function AdditionalPage() {
       panelID: "repeat-customers-content-1",
     },
   ];
-  const orders = [
+
+  const [orders, setOrders] = useState([
     {
       id: "1020",
       bundle: (
@@ -397,11 +430,60 @@ export default function AdditionalPage() {
         </div>
       ),
     },
-  ];
+  ]);
+
+  useEffect(() => {
+    // Map the bundle data to the desired format
+    const mappedTableData = bundleData.map((bundle) => ({
+      id: bundle.id,
+      bundle: (
+        <div className="avatar-row">
+          {bundle.bundle_items.map((item) => (
+            <Avatar customer key={item.id} name={item.name} />
+          ))}
+        </div>
+      ),
+      name: bundle.bundle_name,
+      status: (
+        <div className="custom-badge">
+          <Badge status={bundle.bundle_status ? "success" : "default"}>
+            {bundle.bundle_status ? "active" : "inactive"}
+          </Badge>
+        </div>
+      ),
+      type: "Bundle",
+      discount:
+        bundle.bundle_discount_type === "percentage"
+          ? `${bundle.bunde_discount_value}% off`
+          : `$${bundle.bunde_discount_value} off`,
+    }));
+
+    const mappedRows = bundleData.map((bundle) => [
+      <div className="avatar-row">
+        {bundle.bundle_items.map((item) => (
+          <Avatar customer key={item.id} name={item.name} />
+        ))}
+      </div>,
+      bundle.bundle_name,
+      <div className="custom-badge">
+        <Badge status={bundle.bundle_status ? "success" : "default"}>
+          {bundle.bundle_status ? "active" : "inactive"}
+        </Badge>
+      </div>,
+      bundle.bundle_discount_type === "percentage"
+        ? `${bundle.bunde_discount_value}% off`
+        : `$${bundle.bunde_discount_value} off`,
+    ]);
+
+    setRows(mappedRows);
+
+    // Set the mapped data in the state
+    setOrders(mappedTableData);
+  }, [bundleData]);
 
   const resourceName = {
-    singular: "order",
-    plural: "orders",
+    singular: "bundle",
+    plural: "Bundles",
   };
 
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
@@ -427,7 +509,7 @@ export default function AdditionalPage() {
         <IndexTable.Cell>{status}</IndexTable.Cell>
         <IndexTable.Cell>{type}</IndexTable.Cell>
         <IndexTable.Cell>{discount}</IndexTable.Cell>
-        <IndexTable.Cell>{fulfillmentStatus}</IndexTable.Cell>
+        {/* <IndexTable.Cell>{fulfillmentStatus}</IndexTable.Cell> */}
       </IndexTable.Row>
     )
   );
@@ -461,7 +543,7 @@ export default function AdditionalPage() {
     },
   ];
 
-  const rows = [
+  const [rows, setRows] = useState([
     [
       <div className="avatar-row">
         <Avatar customer name="Farrah" />
@@ -489,7 +571,7 @@ export default function AdditionalPage() {
       <Badge>Draft</Badge>,
       "10% off",
     ],
-  ];
+  ]);
 
   return (
     <Frame>
@@ -822,7 +904,7 @@ export default function AdditionalPage() {
                                 { title: "Status" },
                                 { title: "Type" },
                                 { title: "Discount" },
-                                { title: "Bundle as a product" },
+                                // { title: "Bundle as a product" },
                               ]}
                             >
                               {rowMarkup}
