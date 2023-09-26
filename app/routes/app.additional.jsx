@@ -5,6 +5,9 @@ import { redirect } from "react-router-dom";
 // import { redirect } from "@remix-run/node"; // or cloudflare/deno
 import { json } from "@remix-run/node";
 import {
+  EditMajor
+} from '@shopify/polaris-icons';
+import {
   useActionData,
   useLoaderData,
   useFetcher,
@@ -45,12 +48,12 @@ import {
 import { SearchMinor, SortMinor } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { getBundle } from "../bundle.server";
+import { getBundles } from "../bundle.server";
 
 export const loader = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
 
-  const bundles = await getBundle(session.shop);
+  const bundles = await getBundles(session.shop);
   // console.log()
   return json(bundles);
 };
@@ -431,6 +434,11 @@ export default function AdditionalPage() {
     },
   ]);
 
+  const editBundle = (id) => {
+    cnav("/app/create_bundle_form")
+    console.log('bundle id:', id);
+  }
+
   useEffect(() => {
     // Map the bundle data to the desired format
     const mappedTableData = bundleData.map((bundle) => ({
@@ -513,6 +521,14 @@ export default function AdditionalPage() {
         <IndexTable.Cell>{status}</IndexTable.Cell>
         <IndexTable.Cell>{type}</IndexTable.Cell>
         <IndexTable.Cell>{discount}</IndexTable.Cell>
+        <IndexTable.Cell>
+          <Link
+            onClick={() => cnav(`/app/create_bundle_form/${id}`)}
+            removeUnderline={true}
+          ><Icon
+          source={EditMajor}
+          color="base"/></Link>
+        </IndexTable.Cell>
         {/* <IndexTable.Cell>{fulfillmentStatus}</IndexTable.Cell> */}
       </IndexTable.Row>
     )
@@ -624,7 +640,7 @@ export default function AdditionalPage() {
                                 <Text variant="headingMd" as="h2">
                                   Recent Bundle
                                 </Text>
-                                <Button primary>Create New Bundle</Button>
+                                <Button primary onClick={toggleBundlePopup}>Create New Bundle</Button>
                               </HorizontalStack>
 
                               {rows.length > 0 ? (
@@ -644,7 +660,7 @@ export default function AdditionalPage() {
                                     ]}
                                     rows={rows}
                                     footerContent={
-                                      <Button plain>Show all bundles</Button>
+                                      <Button onClick={()=> handleTabChange(1)} plain>Show all bundles</Button>
                                     }
                                     hasZebraStripingOnData
                                   />
@@ -908,6 +924,7 @@ export default function AdditionalPage() {
                                 { title: "Status" },
                                 { title: "Type" },
                                 { title: "Discount" },
+                                { title: "Action" },
                                 // { title: "Bundle as a product" },
                               ]}
                             >
@@ -1342,7 +1359,7 @@ export default function AdditionalPage() {
                               columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
                             >
                               <Link
-                                onClick={() => cnav("/app/create_bundle_form")}
+                                onClick={() => cnav("/app/create_bundle_form/new")}
                                 removeUnderline={true}
                               >
                                 <VerticalStack gap="2">

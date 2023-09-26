@@ -103,10 +103,28 @@ export async function addBundle(data) {
   return createdBundle;
 }
 
-export async function getBundle(shop) {
+export async function getBundles(shop) {
   const bundles = await db.bundle.findMany({
     where: { shop: shop },
   });
   if (bundles.length === 0) return [];
   return bundles;
 }
+
+export async function getBundle(shop, id){
+  const bundle = await db.bundle.findFirst({
+    where: { shop:shop, id:parseInt(id) },
+  });
+  if (!bundle) return [];
+  return bundle;
+}
+
+export async function updateBundle(id, data){
+  const bundle = await db.bundle.update({
+    where: { id:parseInt(id) },
+      data: data
+  });
+  if (!bundle) return [];
+  return bundle;
+}
+

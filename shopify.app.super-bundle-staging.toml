@@ -2,7 +2,7 @@
 
 name = "Super Bundle Staging"
 client_id = "693180954f2c0e9af09a587efe0e8830"
-application_url = "https://adrian-wu-w-ii.trycloudflare.com"
+application_url = "https://suite-pasta-utah-ordering.trycloudflare.com"
 embedded = true
 
 [access_scopes]
@@ -11,16 +11,16 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://adrian-wu-w-ii.trycloudflare.com/auth/callback",
-  "https://adrian-wu-w-ii.trycloudflare.com/auth/shopify/callback",
-  "https://adrian-wu-w-ii.trycloudflare.com/api/auth/callback"
+  "https://suite-pasta-utah-ordering.trycloudflare.com/auth/callback",
+  "https://suite-pasta-utah-ordering.trycloudflare.com/auth/shopify/callback",
+  "https://suite-pasta-utah-ordering.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
 api_version = "2023-07"
 
 [app_proxy]
-url = "https://adrian-wu-w-ii.trycloudflare.com"
+url = "https://suite-pasta-utah-ordering.trycloudflare.com"
 subpath = "proxy"
 prefix = "apps"
 

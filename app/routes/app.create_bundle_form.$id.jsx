@@ -8,6 +8,7 @@ import {
   useActionData,
   useLoaderData,
   useNavigation,
+  useLocation,
   useSubmit,
 } from "@remix-run/react";
 import { CancelMajor } from "@shopify/polaris-icons";
@@ -36,8 +37,9 @@ import {
 import { FinancesMinor, SearchMinor } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import shopify from "../shopify.server";
+import { getBundle } from "../bundle.server";
 
-import { createProduct, addBundle, addComponents } from "../bundle.server";
+import { createProduct, addBundle, addComponents, updateBundle } from "../bundle.server";
 
 export async function action({ request }) {
   const { admin, session } = await authenticate.admin(request);
@@ -45,38 +47,72 @@ export async function action({ request }) {
   const data = await request.json();
 
   data.shop = shop;
-  delete data.bundle_id;
-  await addBundle(data);
-  const createBundle = await createProduct(
-    { title: data.bundle_title, price: 10 },
-    admin.graphql
-  );
+  if(data.bundle_id == 0){
+    delete data.bundle_id;
+    
+    let productVariant = [];
+    let totalPrice = 0;
 
-  let productId = createBundle.variants.edges[0].node.id;
-  let productPrice = createBundle.variants.edges[0].node.price;
+    for (let i = 0; i < data.bundle_items.length; i++) {
+      productVariant.push({
+        id: data.bundle_items[i].vid,
+        quantity: 1,
+      });
+      totalPrice += data.bundle_items[i].price;
+    }
+    
+    if(data.bundle_discount_value !== 0){
+      if (data.bundle_discount_type === 'fixed'){
+        totalPrice = totalPrice - data.bundle_discount_value;
+      }else{
+        totalPrice = totalPrice - (totalPrice * data.bundle_discount_value / 100);
+  
+      }
+    }
+    
+    await addBundle(data);
+    const createBundle = await createProduct(
+      { title: data.bundle_title, price: totalPrice },
+      admin.graphql
+    );
 
-  console.log(productId, productPrice);
+    let productId = createBundle.variants.edges[0].node.id;
+    let productPrice = createBundle.variants.edges[0].node.price;
 
-  let productVariant = [];
+    console.log(productId, productPrice);
 
-  for (let i = 0; i < data.bundle_items.length; i++) {
-    productVariant.push({
-      id: data.bundle_items[i].vid,
-      quantity: 1,
-    });
+    const addVariants = await addComponents(
+      { parentProductVariantId: productId, productVariant: productVariant },
+      admin.graphql
+    );
+    console.log(addVariants);
+
+    return created(addVariants);
+  }else{
+    let id = data.bundle_id;
+    delete data.bundle_id;
+    await updateBundle(id, data);
+    data.bundle_id = id;
+    return created('Updated....');
   }
-
-  const addVariants = await addComponents(
-    { parentProductVariantId: productId, productVariant: productVariant },
-    admin.graphql
-  );
-  console.log(addVariants);
-
-  return created(addVariants);
+  
 }
+
+export const loader = async ({ request, params }) => {
+  const { admin, session } = await authenticate.admin(request);
+  if(params.id !== 'new'){
+    console.log('request id: ', params.id);
+    const bundles = await getBundle(session.shop, params.id);
+    // console.log()
+    return json(bundles);
+  }
+  return json(null);
+};
 
 export default function AdditionalPage() {
   const actionData = useActionData();
+  const location = useLocation();
+  const bundle = useLoaderData();
 
   const [bundlepopover, setBundlePopover] = useState(false);
   const [bundlestatus, setBundleStatus] = useState(false);
@@ -100,6 +136,33 @@ export default function AdditionalPage() {
     bundle_end_date: "",
     bundle_type: "fixed_bundle",
   });
+
+  useEffect (() => {
+    console.log('Bundle data: ', bundle)
+    if(bundle){
+      setFormState({
+        ...bundle,
+        bundle_id: bundle.id,
+        bundle_title: bundle.bundle_title,
+        bundle_name: bundle.bundle_name,
+        bundle_image: bundle.bundle_image,
+        bundle_discount: bundle.bundle_discount,
+        bundle_discount_type: bundle.bundle_discount_type,
+        bundle_discount_value: bundle.bundle_discount_value,
+        bundle_status:bundle.bundle_status,
+        bundle_items: bundle.bundle_items,
+        bundle_time_status: bundle.bundle_time_status,
+        bundle_start_time: bundle.bundle_start_time,
+        bundle_start_date: bundle.bundle_start_date,
+        bundle_end_status: bundle.bundle_end_status,
+        // bundle_end_status: true,
+        bundle_end_time: bundle.bundle_end_time,
+        bundle_end_date: bundle.bundle_end_date,
+      });
+      setProducts(bundle.bundle_items)
+    }
+
+  },[bundle])
 
   const initialErrorsState = {
     bundle_id: "",
@@ -162,10 +225,11 @@ export default function AdditionalPage() {
     const validationError = isFormValid(formState);
     if (validationError) {
       // console.error(validationError);
+      // @ts-ignore
       setErrors(validationError);
     } else {
       try {
-        const response = await fetch("/app/create_bundle_form", {
+        const response = await fetch(`/app/create_bundle_form/${formState.bundle_id}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -244,6 +308,7 @@ export default function AdditionalPage() {
       const newProduct = {
         id: id,
         vid: variants[0].id,
+        price: variants[0].price,
         url: handle,
         name: title,
         image: images[0]?.originalSrc,
@@ -580,13 +645,17 @@ export default function AdditionalPage() {
           </Layout.Section>
           <Layout.Section>
             <HorizontalStack gap="4">
-              <div style={{ color: "#bf0711" }}>
+              { formState.bundle_id != 0 && 
+                <div style={{ color: "#bf0711" }}>
                 <Button monochrome outline>
                   Delete bundle
                 </Button>
               </div>
+              }
               <Button primary onClick={handleSubmit}>
-                Save
+                {
+                  formState.bundle_id != 0 ? "Update bundle" : "Create bundle"
+                }
               </Button>
             </HorizontalStack>
           </Layout.Section>
