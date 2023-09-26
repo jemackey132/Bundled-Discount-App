@@ -1,5 +1,11 @@
 import { useEffect, useCallback, useState } from "react";
-import { json } from "@remix-run/node";
+import {
+  json,
+  unstable_composeUploadHandlers,
+  unstable_createFileUploadHandler,
+  unstable_createMemoryUploadHandler,
+  unstable_parseMultipartFormData,
+} from "@remix-run/node";
 // import { json } from "@remix-run/express";
 import { cors } from "remix-utils";
 import { created } from "remix-utils";
@@ -33,23 +39,65 @@ import {
   ActionList,
   Divider,
   Checkbox,
+  DropZone,
+  LegacyStack,
+  Thumbnail,
 } from "@shopify/polaris";
-import { FinancesMinor, SearchMinor } from "@shopify/polaris-icons";
+import { FinancesMinor, SearchMinor, NoteMinor } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import shopify from "../shopify.server";
 import { getBundle } from "../bundle.server";
 
-import { createProduct, addBundle, addComponents, updateBundle } from "../bundle.server";
+import {
+  createProduct,
+  addBundle,
+  addComponents,
+  updateBundle,
+} from "../bundle.server";
 
 export async function action({ request }) {
+  const uploadHandler = unstable_composeUploadHandlers(
+    unstable_createFileUploadHandler({
+      directory: "./public/uploads",
+      file: ({ filename }) => filename,
+    }),
+    unstable_createMemoryUploadHandler()
+  );
+
   const { admin, session } = await authenticate.admin(request);
   const { shop } = session;
-  const data = await request.json();
+
+  const formData = await unstable_parseMultipartFormData(
+    request,
+    uploadHandler
+  );
+
+  const file = formData.get("bundle_image");
+
+  // @ts-ignore
+  const filePath = `uploads/${file.name}`;
+  // const data = await request.formData();
+  const data = Object.fromEntries(formData);
+  // @ts-ignore
+  data.bundle_items = JSON.parse(data.bundle_items);
+  // @ts-ignore
+  data.bundle_discount = data.bundle_discount === "true" ? true : false;
+  // @ts-ignore
+  data.bundle_status = data.bundle_status === "true" ? true : false;
+  // @ts-ignore
+  data.bundle_end_status = data.bundle_end_status === "true" ? true : false;
+  // @ts-ignore
+  data.bundle_time_status = data.bundle_time_status === "true" ? true : false;
 
   data.shop = shop;
-  if(data.bundle_id == 0){
+
+  console.log(data);
+
+  // console.log('image data: ', data.bundle_image);
+  // @ts-ignore
+  if (data.bundle_id == 0) {
     delete data.bundle_id;
-    
+
     let productVariant = [];
     let totalPrice = 0;
 
@@ -60,16 +108,19 @@ export async function action({ request }) {
       });
       totalPrice += data.bundle_items[i].price;
     }
-    
-    if(data.bundle_discount_value !== 0){
-      if (data.bundle_discount_type === 'fixed'){
+
+    // @ts-ignore
+    if (data.bundle_discount_value !== 0) {
+      if (data.bundle_discount_type === "fixed") {
+        // @ts-ignore
         totalPrice = totalPrice - data.bundle_discount_value;
-      }else{
-        totalPrice = totalPrice - (totalPrice * data.bundle_discount_value / 100);
-  
+      } else {
+        totalPrice =
+          // @ts-ignore
+          totalPrice - (totalPrice * data.bundle_discount_value) / 100;
       }
     }
-    
+
     await addBundle(data);
     const createBundle = await createProduct(
       { title: data.bundle_title, price: totalPrice },
@@ -88,20 +139,20 @@ export async function action({ request }) {
     console.log(addVariants);
 
     return created(addVariants);
-  }else{
+  } else {
     let id = data.bundle_id;
     delete data.bundle_id;
+    data.bundle_image = "";
     await updateBundle(id, data);
-    data.bundle_id = id;
-    return created('Updated....');
+    // data.bundle_id = id;
+    return created("Updated....");
   }
-  
 }
 
 export const loader = async ({ request, params }) => {
   const { admin, session } = await authenticate.admin(request);
-  if(params.id !== 'new'){
-    console.log('request id: ', params.id);
+  if (params.id !== "new") {
+    console.log("request id: ", params.id);
     const bundles = await getBundle(session.shop, params.id);
     // console.log()
     return json(bundles);
@@ -137,9 +188,9 @@ export default function AdditionalPage() {
     bundle_type: "fixed_bundle",
   });
 
-  useEffect (() => {
-    console.log('Bundle data: ', bundle)
-    if(bundle){
+  useEffect(() => {
+    console.log("Bundle data: ", bundle);
+    if (bundle) {
       setFormState({
         ...bundle,
         bundle_id: bundle.id,
@@ -149,7 +200,7 @@ export default function AdditionalPage() {
         bundle_discount: bundle.bundle_discount,
         bundle_discount_type: bundle.bundle_discount_type,
         bundle_discount_value: bundle.bundle_discount_value,
-        bundle_status:bundle.bundle_status,
+        bundle_status: bundle.bundle_status,
         bundle_items: bundle.bundle_items,
         bundle_time_status: bundle.bundle_time_status,
         bundle_start_time: bundle.bundle_start_time,
@@ -159,10 +210,9 @@ export default function AdditionalPage() {
         bundle_end_time: bundle.bundle_end_time,
         bundle_end_date: bundle.bundle_end_date,
       });
-      setProducts(bundle.bundle_items)
+      setProducts(bundle.bundle_items);
     }
-
-  },[bundle])
+  }, [bundle]);
 
   const initialErrorsState = {
     bundle_id: "",
@@ -229,13 +279,36 @@ export default function AdditionalPage() {
       setErrors(validationError);
     } else {
       try {
-        const response = await fetch(`/app/create_bundle_form/${formState.bundle_id}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formState), // Serialize the form data
-        });
+        const formdata = new FormData();
+        // @ts-ignore
+        formdata.append("bundle_id", formState.bundle_id);
+        formdata.append("bundle_title", formState.bundle_title);
+        formdata.append("bundle_name", formState.bundle_name);
+        // @ts-ignore
+        formdata.append("bundle_image", file);
+        // @ts-ignore
+        formdata.append("bundle_discount", formState.bundle_discount);
+        formdata.append("bundle_discount_type", formState.bundle_discount_type);
+        formdata.append("bunde_discount_value", formState.bunde_discount_value);
+        // @ts-ignore
+        formdata.append("bundle_status", formState.bundle_status);
+        formdata.append("bundle_items", JSON.stringify(formState.bundle_items));
+        // @ts-ignore
+        formdata.append("bundle_time_status", formState.bundle_time_status);
+        formdata.append("bundle_start_time", formState.bundle_start_time);
+        formdata.append("bundle_start_date", formState.bundle_start_date);
+        // @ts-ignore
+        formdata.append("bundle_end_status", formState.bundle_end_status);
+        formdata.append("bundle_end_time", formState.bundle_end_time);
+        formdata.append("bundle_end_date", formState.bundle_end_date);
+
+        const response = await fetch(
+          `/app/create_bundle_form/${formState.bundle_id}`,
+          {
+            method: "POST",
+            body: formdata,
+          }
+        );
 
         if (response.ok) {
           // Handle success (e.g., show a success message, reset the form)
@@ -336,6 +409,47 @@ export default function AdditionalPage() {
     updatedProducts = products.filter((product) => product.id !== productId);
     setProducts(updatedProducts);
   };
+
+  const [file, setFile] = useState();
+  const validImageTypes = ["image/gif", "image/jpeg", "image/png"];
+
+  const handleDropZoneDrop = useCallback(
+    (_dropFiles, acceptedFiles, rejectedFiles) => {
+      setFile(acceptedFiles[0]);
+      handleState("bundle_image", acceptedFiles[0]);
+    },
+    []
+  );
+
+  const fileUpload = !file && <DropZone.FileUpload />;
+  const uploadedFile = file && (
+    <LegacyStack>
+      <Thumbnail
+        size="small"
+        // @ts-ignore
+        alt={file.name}
+        source={
+          // @ts-ignore
+          validImageTypes.includes(file.type)
+            ? window.URL.createObjectURL(file)
+            : NoteMinor
+        }
+      />
+      <div>
+        {
+          // @ts-ignore
+          file.name
+        }{" "}
+        <Text variant="bodySm" as="p">
+          {
+            // @ts-ignore
+            file.size
+          }{" "}
+          bytes
+        </Text>
+      </div>
+    </LegacyStack>
+  );
 
   return (
     <Page
@@ -477,6 +591,18 @@ export default function AdditionalPage() {
                               handleState("bundle_title", value)
                             }
                           />
+                          <Text as="h2">Bundle Image</Text>
+                          <DropZone
+                            allowMultiple={false}
+                            onDrop={handleDropZoneDrop}
+                          >
+                            {uploadedFile}
+                            {fileUpload}
+                          </DropZone>
+                          <Text as="p">
+                            Your customers will see this as a product image on
+                            the bundle product display.
+                          </Text>
                         </VerticalStack>
                       </div>
                       <div className="bundle-status-selector">
@@ -645,17 +771,15 @@ export default function AdditionalPage() {
           </Layout.Section>
           <Layout.Section>
             <HorizontalStack gap="4">
-              { formState.bundle_id != 0 && 
+              {formState.bundle_id != 0 && (
                 <div style={{ color: "#bf0711" }}>
-                <Button monochrome outline>
-                  Delete bundle
-                </Button>
-              </div>
-              }
+                  <Button monochrome outline>
+                    Delete bundle
+                  </Button>
+                </div>
+              )}
               <Button primary onClick={handleSubmit}>
-                {
-                  formState.bundle_id != 0 ? "Update bundle" : "Create bundle"
-                }
+                {formState.bundle_id != 0 ? "Update bundle" : "Create bundle"}
               </Button>
             </HorizontalStack>
           </Layout.Section>
