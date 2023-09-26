@@ -30,7 +30,7 @@ model Bundle {
   bundle_image          String
   bundle_discount       Boolean  @default(true)
   bundle_discount_type  String
-  bunde_discount_value  String
+  bundle_discount_value String
   bundle_status         Boolean  @default(true)
   bundle_items          Json
   bundle_time_status    Boolean  @default(false)
@@ -46,6 +46,7 @@ model Bundle {
   bundle_gid            String?
   bundle_handle         String?
   bundle_price          String?
+  bundle_currency       String?
   bundle_discount_price String?
   bundle_media          String?
   created_at            DateTime @default(now()) @map("created_at")

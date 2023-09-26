@@ -2,7 +2,7 @@
 
 name = "Super Bundle Staging"
 client_id = "693180954f2c0e9af09a587efe0e8830"
-application_url = "https://touring-javascript-honor-dresses.trycloudflare.com"
+application_url = "https://rocky-nb-relationships-gb.trycloudflare.com"
 embedded = true
 
 [access_scopes]
@@ -11,16 +11,16 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://touring-javascript-honor-dresses.trycloudflare.com/auth/callback",
-  "https://touring-javascript-honor-dresses.trycloudflare.com/auth/shopify/callback",
-  "https://touring-javascript-honor-dresses.trycloudflare.com/api/auth/callback"
+  "https://rocky-nb-relationships-gb.trycloudflare.com/auth/callback",
+  "https://rocky-nb-relationships-gb.trycloudflare.com/auth/shopify/callback",
+  "https://rocky-nb-relationships-gb.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
 api_version = "2023-07"
 
 [app_proxy]
-url = "https://touring-javascript-honor-dresses.trycloudflare.com"
+url = "https://rocky-nb-relationships-gb.trycloudflare.com"
 subpath = "proxy"
 prefix = "apps"
 

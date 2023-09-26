@@ -3,12 +3,15 @@ import shopify from "./shopify.server";
 import db from "./db.server";
 
 export async function createProduct(data, graphql) {
+  console.log(data);
   const response = await graphql(
     `
       mutation CreateProductBundle($input: ProductInput!) {
         productCreate(input: $input) {
           product {
+            id
             title
+            handle
             variants(first: 10) {
               edges {
                 node {
@@ -29,9 +32,11 @@ export async function createProduct(data, graphql) {
       variables: {
         input: {
           title: data.title,
+          status: "ACTIVE",
           variants: [
             {
               price: data.price,
+              compareAtPrice: data.compare_price,
             },
           ],
         },
@@ -79,8 +84,13 @@ export async function addComponents(data, graphql) {
       variables: {
         input: [
           {
-            parentProductVariantId: data.parentProductVariantId,
+            parentProductId:data.parentProductId,
+            // parentProductVariantId: data.parentProductVariantId,
             productVariantRelationshipsToCreate: data.productVariant,
+            removeAllProductVariantRelationships: true,
+            priceInput: {
+              calculation: "NONE",
+            },
           },
         ],
       },
@@ -111,20 +121,19 @@ export async function getBundles(shop) {
   return bundles;
 }
 
-export async function getBundle(shop, id){
+export async function getBundle(shop, id) {
   const bundle = await db.bundle.findFirst({
-    where: { shop:shop, id:parseInt(id) },
+    where: { shop: shop, id: parseInt(id) },
   });
   if (!bundle) return [];
   return bundle;
 }
 
-export async function updateBundle(id, data){
+export async function updateBundle(id, data) {
   const bundle = await db.bundle.update({
-    where: { id:parseInt(id) },
-      data: data
+    where: { id: parseInt(id) },
+    data: data,
   });
   if (!bundle) return [];
   return bundle;
 }
-

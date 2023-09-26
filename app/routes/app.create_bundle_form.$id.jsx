@@ -88,7 +88,7 @@ export async function action({ request }) {
   data.bundle_end_status = data.bundle_end_status === "true" ? true : false;
   // @ts-ignore
   data.bundle_time_status = data.bundle_time_status === "true" ? true : false;
-
+  data.bundle_image = filePath;
   data.shop = shop;
 
   console.log(data);
@@ -100,40 +100,64 @@ export async function action({ request }) {
 
     let productVariant = [];
     let totalPrice = 0;
+    let originalPrice = 0;
 
     for (let i = 0; i < data.bundle_items.length; i++) {
       productVariant.push({
         id: data.bundle_items[i].vid,
         quantity: 1,
       });
-      totalPrice += data.bundle_items[i].price;
+      totalPrice += parseFloat(data.bundle_items[i].price);
+      originalPrice += parseFloat(data.bundle_items[i].price);
     }
 
     // @ts-ignore
     if (data.bundle_discount_value !== 0) {
-      if (data.bundle_discount_type === "fixed") {
+      if (data.bundle_discount_type == "fixed") {
         // @ts-ignore
-        totalPrice = totalPrice - data.bundle_discount_value;
+        totalPrice = totalPrice - parseFloat(data.bundle_discount_value);
       } else {
+        // console.log('percentage discount')
+        // console.log(totalPrice)
+        // console.log(data.bundle_discount_value)
+        // console.log(totalPrice * parseInt(data.bundle_discount_value))
         totalPrice =
           // @ts-ignore
-          totalPrice - (totalPrice * data.bundle_discount_value) / 100;
+          totalPrice -
+          (totalPrice * parseInt(data.bundle_discount_value)) / 100;
       }
     }
-
-    await addBundle(data);
+    console.log(totalPrice);
     const createBundle = await createProduct(
-      { title: data.bundle_title, price: totalPrice },
+      {
+        title: data.bundle_title,
+        price: totalPrice,
+        compare_price: originalPrice,
+      },
       admin.graphql
     );
 
     let productId = createBundle.variants.edges[0].node.id;
     let productPrice = createBundle.variants.edges[0].node.price;
+    let productGid = createBundle.id;
+    let productHandle = createBundle.handle;
+
+    data.bundle_gid = productGid;
+    data.bundle_handle = productHandle;
+    // @ts-ignore
+    data.bundle_price = originalPrice.toString();
+    data.bundle_discount_price = totalPrice.toString();
+
+    await addBundle(data);
 
     console.log(productId, productPrice);
 
     const addVariants = await addComponents(
-      { parentProductVariantId: productId, productVariant: productVariant },
+      {
+        parentProductVariantId: productId,
+        productVariant: productVariant,
+        parentProductId: productGid,
+      },
       admin.graphql
     );
     console.log(addVariants);
@@ -176,7 +200,7 @@ export default function AdditionalPage() {
     bundle_image: "",
     bundle_discount: true,
     bundle_discount_type: "percentage",
-    bunde_discount_value: "",
+    bundle_discount_value: "",
     bundle_status: true,
     bundle_items: [],
     bundle_time_status: false,
@@ -220,7 +244,7 @@ export default function AdditionalPage() {
     bundle_name: "",
     bundle_image: "",
     bundle_discount_type: "",
-    bunde_discount_value: "",
+    bundle_discount_value: "",
     bundle_items: "",
     bundle_start_time: "",
     bundle_start_date: "",
@@ -232,7 +256,7 @@ export default function AdditionalPage() {
     bundle_title: "Bundle Title",
     bundle_name: "Bundle Name",
     bundle_discount_type: "Bundle Discount Type",
-    bunde_discount_value: "Bundle Discount Value",
+    bundle_discount_value: "Bundle Discount Value",
     bundle_items: "Bundle Items",
     bundle_start_time: "Start Time",
     bundle_start_date: "Start Date",
@@ -286,10 +310,14 @@ export default function AdditionalPage() {
         formdata.append("bundle_name", formState.bundle_name);
         // @ts-ignore
         formdata.append("bundle_image", file);
+        formdata.append("bundle_type", formState.bundle_type);
         // @ts-ignore
         formdata.append("bundle_discount", formState.bundle_discount);
         formdata.append("bundle_discount_type", formState.bundle_discount_type);
-        formdata.append("bunde_discount_value", formState.bunde_discount_value);
+        formdata.append(
+          "bundle_discount_value",
+          formState.bundle_discount_value
+        );
         // @ts-ignore
         formdata.append("bundle_status", formState.bundle_status);
         formdata.append("bundle_items", JSON.stringify(formState.bundle_items));
@@ -682,9 +710,9 @@ export default function AdditionalPage() {
                         <TextField
                           label="Discount value"
                           type="number"
-                          value={formState.bunde_discount_value}
+                          value={formState.bundle_discount_value}
                           onChange={(value) =>
-                            handleState("bunde_discount_value", value)
+                            handleState("bundle_discount_value", value)
                           }
                           prefix={
                             formState.bundle_discount_type == "fixed"
