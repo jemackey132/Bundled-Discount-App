@@ -48,7 +48,7 @@ model Bundle {
   bundle_price          String?
   bundle_currency       String?
   bundle_discount_price String?
-  bundle_media          String?
+  bundle_media          String?  @db.VarChar(200)
   created_at            DateTime @default(now()) @map("created_at")
   updated_at            DateTime @updatedAt @map("updated_at")
 }

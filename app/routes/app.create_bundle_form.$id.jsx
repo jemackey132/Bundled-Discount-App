@@ -46,13 +46,17 @@ import {
 import { FinancesMinor, SearchMinor, NoteMinor } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import shopify from "../shopify.server";
-import { getBundle } from "../bundle.server";
+import { addProductMedia, getBundle } from "../bundle.server";
 
 import {
   createProduct,
   addBundle,
   addComponents,
   updateBundle,
+  removeAllComponents,
+  updateComponents,
+  updateProduct,
+  attachMedia,
 } from "../bundle.server";
 
 export async function action({ request }) {
@@ -73,9 +77,8 @@ export async function action({ request }) {
   );
 
   const file = formData.get("bundle_image");
-
   // @ts-ignore
-  const filePath = `uploads/${file.name}`;
+
   // const data = await request.formData();
   const data = Object.fromEntries(formData);
   // @ts-ignore
@@ -88,7 +91,35 @@ export async function action({ request }) {
   data.bundle_end_status = data.bundle_end_status === "true" ? true : false;
   // @ts-ignore
   data.bundle_time_status = data.bundle_time_status === "true" ? true : false;
-  data.bundle_image = filePath;
+  let resUrl = false;
+  if (file) {
+    console.log(file);
+    // @ts-ignore
+    const filePath = `uploads/${file.name}`;
+    resUrl = await addProductMedia(
+      {
+        // @ts-ignore
+        path: file.filepath,
+        // @ts-ignore
+        name: file.name,
+        handle: `https://dates-pulse-referred-imported.trycloudflare.com/${filePath}`,
+        // @ts-ignore
+        type: file.type,
+      },
+      admin.graphql
+    );
+    data.bundle_image = filePath;
+    console.log("image available");
+  } else {
+    if (data.bundle_id == 0) {
+      console.log("no image available");
+      data.bundle_image = "";
+    } else {
+      console.log("update with no image");
+      delete data.bundle_image;
+    }
+  }
+
   data.shop = shop;
 
   console.log(data);
@@ -132,8 +163,10 @@ export async function action({ request }) {
     const createBundle = await createProduct(
       {
         title: data.bundle_title,
+        status: data.bundle_status ? "ACTIVE" : "DRAFT",
         price: totalPrice,
         compare_price: originalPrice,
+        // media: resUrl,
       },
       admin.graphql
     );
@@ -148,6 +181,14 @@ export async function action({ request }) {
     // @ts-ignore
     data.bundle_price = originalPrice.toString();
     data.bundle_discount_price = totalPrice.toString();
+
+    if (resUrl) {
+      const mediadId = await attachMedia(
+        { media: resUrl, id: productGid },
+        admin.graphql
+      );
+      data.bundle_media = mediadId[0].id;
+    }
 
     await addBundle(data);
 
@@ -167,9 +208,91 @@ export async function action({ request }) {
   } else {
     let id = data.bundle_id;
     delete data.bundle_id;
-    data.bundle_image = "";
+    // data.bundle_image = "";
+    let oldData = await getBundle(session.shop, id);
+    console.log("Old data", oldData);
+
+    let productVariant = [];
+    let totalPrice = 0;
+    let originalPrice = 0;
+
+    for (let i = 0; i < data.bundle_items.length; i++) {
+      productVariant.push({
+        id: data.bundle_items[i].vid,
+        quantity: 1,
+      });
+      totalPrice += parseFloat(data.bundle_items[i].price);
+      originalPrice += parseFloat(data.bundle_items[i].price);
+    }
+
+    // @ts-ignore
+    if (data.bundle_discount_value !== 0) {
+      if (data.bundle_discount_type == "fixed") {
+        // @ts-ignore
+        totalPrice = totalPrice - parseFloat(data.bundle_discount_value);
+      } else {
+        // console.log('percentage discount')
+        // console.log(totalPrice)
+        // console.log(data.bundle_discount_value)
+        // console.log(totalPrice * parseInt(data.bundle_discount_value))
+        totalPrice =
+          // @ts-ignore
+          totalPrice -
+          // @ts-ignore
+          (totalPrice * parseInt(data.bundle_discount_value)) / 100;
+      }
+    }
+    console.log(totalPrice);
+
+    // @ts-ignore
+    if (oldData.bundle_title != data.bundle_title) {
+      console.log("updating the product");
+      const updateShopifyProduct = await updateProduct(
+        {
+          // @ts-ignore
+          id: oldData.bundle_gid,
+          title: data.bundle_title,
+          // media: resUrl,
+          status: data.bundle_status ? "ACTIVE" : "DRAFT",
+        },
+        admin.graphql
+      );
+
+      console.log(updateShopifyProduct);
+    }
+
+    // @ts-ignore
+    let productId = oldData.bundle_gid;
+    // @ts-ignore
+    let productGid = oldData.bundle_gid;
+
+    const removeVariants = await removeAllComponents(
+      { parentProductId: productGid },
+      admin.graphql
+    );
+
+    const addVariants = await updateComponents(
+      {
+        productVariant: productVariant,
+        parentProductId: productGid,
+        price: totalPrice,
+      },
+      admin.graphql
+    );
+    console.log(removeVariants);
+    data.bundle_price = originalPrice.toString();
+    data.bundle_discount_price = totalPrice.toString();
+    console.log(resUrl);
+    if (resUrl) {
+      const mediadId = await attachMedia(
+        { media: resUrl, id: productGid },
+        admin.graphql
+      );
+      data.bundle_media = mediadId[0].id;
+    }
+
     await updateBundle(id, data);
-    // data.bundle_id = id;
+
     return created("Updated....");
   }
 }
@@ -189,11 +312,28 @@ export default function AdditionalPage() {
   const actionData = useActionData();
   const location = useLocation();
   const bundle = useLoaderData();
-
+  const [loader, setLoader] = useState(false);
   const [bundlepopover, setBundlePopover] = useState(false);
   const [bundlestatus, setBundleStatus] = useState(false);
   const [products, setProducts] = useState([]);
   const [query, setQuery] = useState("");
+
+  function getCurrentDate() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // Function to get the current time in "HH:MM" format
+  function getCurrentTime() {
+    const today = new Date();
+    const hours = String(today.getHours()).padStart(2, '0');
+    const minutes = String(today.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
   const [formState, setFormState] = useState({
     bundle_id: 0,
     bundle_title: "",
@@ -205,8 +345,8 @@ export default function AdditionalPage() {
     bundle_status: true,
     bundle_items: [],
     bundle_time_status: false,
-    bundle_start_time: "",
-    bundle_start_date: "",
+    bundle_start_time: getCurrentTime(),
+    bundle_start_date: getCurrentDate(),
     bundle_end_status: false,
     bundle_end_time: "",
     bundle_end_date: "",
@@ -296,6 +436,7 @@ export default function AdditionalPage() {
   }
 
   const handleSubmit = async (event) => {
+    setLoader(true);
     event.preventDefault(); // Prevent the default form submission behavior
     const validationError = isFormValid(formState);
     if (validationError) {
@@ -342,11 +483,18 @@ export default function AdditionalPage() {
         if (response.ok) {
           // Handle success (e.g., show a success message, reset the form)
           console.log("Bundle created successfully!");
+          if (formState.bundle_id == 0) {
+            window.shopify.toast.show("Bundle created successfully!");
+          } else {
+            window.shopify.toast.show("Bundle updated successfully!");
+          }
         } else {
           // Handle errors (e.g., show an error message)
           console.error("Error creating bundle:", response.status);
         }
+        setLoader(false);
       } catch (error) {
+        setLoader(false);
         console.error("An error occurred:", error);
       }
     }
@@ -621,6 +769,18 @@ export default function AdditionalPage() {
                             }
                           />
                           <Text as="h2">Bundle Image</Text>
+                          {formState.bundle_id != 0 &&
+                            formState.bundle_image && (
+                              <Thumbnail
+                                source={
+                                  window.location.origin +
+                                  "/" +
+                                  formState.bundle_image
+                                }
+                                size="large"
+                                alt="Black choker necklace"
+                              />
+                            )}
                           <DropZone
                             allowMultiple={false}
                             onDrop={handleDropZoneDrop}
@@ -628,6 +788,7 @@ export default function AdditionalPage() {
                             {uploadedFile}
                             {fileUpload}
                           </DropZone>
+                          
                           <Text as="p">
                             Your customers will see this as a product image on
                             the bundle product display.
@@ -807,7 +968,7 @@ export default function AdditionalPage() {
                   </Button>
                 </div>
               )}
-              <Button primary onClick={handleSubmit}>
+              <Button loading={loader} primary onClick={handleSubmit}>
                 {formState.bundle_id != 0 ? "Update bundle" : "Create bundle"}
               </Button>
             </HorizontalStack>
