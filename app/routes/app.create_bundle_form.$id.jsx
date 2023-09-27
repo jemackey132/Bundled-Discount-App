@@ -124,6 +124,7 @@ export async function action({ request }) {
         totalPrice =
           // @ts-ignore
           totalPrice -
+          // @ts-ignore
           (totalPrice * parseInt(data.bundle_discount_value)) / 100;
       }
     }
