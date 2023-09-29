@@ -332,6 +332,75 @@ export async function attachMedia(data, graphql) {
   }
 }
 
+export async function getChannels(graphql) {
+  const query = `{
+    publications(first: 10) {
+      nodes {
+        id
+        name
+      }
+    }
+  }
+  `;
+
+  try {
+    const response = await graphql(query);
+
+    const {
+      data: { publications },
+    } = await response.json();
+    console.log(publications);
+    return publications;
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
+export async function publishProduct(data, graphql) {
+  const channels = await getChannels(graphql);
+
+  console.log(channels);
+
+  const channel = channels.nodes.find((obj) => obj.name === "Online Store");
+
+  const mutation = `
+  mutation publishablePublish($id: ID!, $input: [PublicationInput!]!) {
+    publishablePublish(id: $id, input: $input) {
+      publishable {
+        availablePublicationCount
+        publicationCount
+      }
+      shop {
+        publicationCount
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }  
+  `;
+
+  try {
+    const response = await graphql(mutation, {
+      variables: {
+        id: data.gid,
+        input: {
+          publicationId: channel.id,
+        },
+      },
+    });
+
+    const {
+      data: { publishablePublishToCurrentChannel },
+    } = await response.json();
+    console.log(publishablePublishToCurrentChannel);
+    return publishablePublishToCurrentChannel;
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
 export async function updateComponents(data, graphql) {
   const response = await graphql(
     `
