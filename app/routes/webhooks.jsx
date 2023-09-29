@@ -2,6 +2,7 @@ import { authenticate } from "../shopify.server";
 import db from "../db.server";
 
 export const action = async ({ request }) => {
+  console.log(request)
   const { topic, shop, session } = await authenticate.webhook(request);
 
   switch (topic) {
@@ -13,6 +14,10 @@ export const action = async ({ request }) => {
     case "CUSTOMERS_DATA_REQUEST":
     case "CUSTOMERS_REDACT":
     case "SHOP_REDACT":
+    case "ORDERS_CREATE":
+      if(session){
+        // await db.bundle;
+      }
     default:
       throw new Response("Unhandled webhook topic", { status: 404 });
   }
