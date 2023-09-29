@@ -1,21 +1,23 @@
 <style>
-  #super-bundle-data{
+  #super-bundle-data {
     display: flex;
+    flex-direction: column;
     justify-content: center;
     text-align: center;
+    border: 1px solid #e1e1e1;
+    border-radius: 8px;
+    padding: 16px;
   }
-  
+
   .product-tile {
-    width: 200px;
-    height: 200px;
-    background-color: #ffffff;
-    border: 1px solid #000000;
-    margin: 10px;
+    display: flex;
+    align-items: center;
   }
 
   .product-image {
-    width: 100px;
-    height: 100px;
+    width: 72px;
+    height: 72px;
+    border-radius: 5px;
   }
 
   .product-title {
@@ -27,77 +29,209 @@
     font-size: 14px;
     text-align: center;
   }
-</style>
 
-<super-bundle id="super-bundle-data"></super-bundle>
-
-<script>
-  var product = {{ product | json }}
-
-  function appendProductTile(title, imageSrc, price) {
-    const productTile = document.createElement("div");
-    productTile.classList.add("product-tile");
-
-    const productImage = document.createElement("img");
-    productImage.src = imageSrc;
-    productImage.alt = "Product Image";
-    productImage.classList.add('product-image');
-
-    const productTitle = document.createElement("h3");
-    productTitle.textContent = title;
-
-    const productPrice = document.createElement("p");
-    productPrice.textContent = price;
-
-    productTile.appendChild(productImage);
-    productTile.appendChild(productTitle);
-    productTile.appendChild(productPrice);
-
-    document.getElementById("super-bundle-data").appendChild(productTile);
+  .product-name-price-div {
+    display: flex;
+    flex-direction: column;
+    margin-left: 16px;
+    align-items: flex-start;
   }
 
-  let formData = new FormData();
-  formData.append('product_id', product.id);
+  .product-name-price-div h3,
+  .product-name-price-div p {
+    margin: 0px;
+  }
 
-  var options = {
-    method:"POST",
-    body:formData
-  };
+  .product-name-price-div h3 {
+    font-size: 15px;
+  }
+  .product-name-price-div p {
+    font-size: 13px;
+    color: #202223;
+  }
+  .product-divider {
+    height: 1px;
+    border-top: 1px solid #e1e1e1;
+    position: relative;
+    margin-bottom: 10px;
+    margin-top: 10px;
+  }
+  .divider-plus-image {
+    position: absolute;
+    background: #fafaf9;
+    left: 50%;
+    transform: translateX(-50%);
+    top: -12px;
+    width: 66px;
+  }
+  .powered-by-text-div {
+    margin-top: 10px;
+  }
+  .powered-by-text-div p {
+    color: #727272;
+    font-size: 12px;
+    margin: 0px;
+  }
+  .powered-by-text-div a {
+    color: #6e7cff;
+    font-size: 12px;
+    margin: 0px;
+    text-decoration: underline;
+  }
+</style>
 
-  fetch("/apps/proxy",options)
-  .then((res) => res.json())
-  .then((data) => {
-    console.log(data)
-    var productData = data.responseJson.data.product
+<super-bundle id="super-bundle-data" style="display:none"></super-bundle>
 
-    var hasDefault = productData.hasOnlyDefaultVariant
+<script>
+    var product = {{ product | json }}
 
-    var productVariant = productData.variants.nodes
+    function appendProductTile(title, imageSrc, price) {
+      const productTile = document.createElement("div");
+      productTile.classList.add("product-tile");
 
-    var hasComponents = productVariant[0].requiresComponents
+      const productImage = document.createElement("img");
+      productImage.src = imageSrc;
+      productImage.alt = "Product Image";
+      productImage.classList.add('product-image');
 
-    if(hasComponents){
-      var componentData = productVariant[0].productVariantComponents.nodes
+      const productTitle = document.createElement("h3");
+      productTitle.textContent = title;
 
-      for(let component of componentData){
-        var title = component.productVariant.displayName;
-        var image = component.productVariant.image ? component.productVariant.image.url: "";
-        var price = component.productVariant.price;
+      const productPrice = document.createElement("p");
+      productPrice.textContent = price;
 
-        var componentDefault = component.productVariant.product.hasOnlyDefaultVariant
+      productTile.appendChild(productImage);
+      productTile.appendChild(productTitle);
+      productTile.appendChild(productPrice);
 
-        if(componentDefault){
-          title = component.productVariant.product.title
-        }
-        if(image == ""){
-          image = component.productVariant.product.featuredImage ? component.productVariant.product.featuredImage.url: ""
-        }
-
-        appendProductTile(title,image,price)
-      }
+      document.getElementById("super-bundle-data").appendChild(productTile);
     }
 
-  })
+    function generateProductHTML(products) {
+      console.log(products)
+      const productContainer = document.getElementById('super-bundle-data');
+      productContainer.style.display = 'flex';
+
+      products.forEach((product, index) => {
+        const productTile = document.createElement('div');
+        productTile.classList.add('product-tile');
+
+        const productImage = document.createElement('img');
+        productImage.src = product.imageSrc;
+        productImage.alt = product.altText;
+        productImage.classList.add('product-image');
+
+        const productDiv = document.createElement('div');
+        productDiv.classList.add('product-name-price-div');
+
+        const productName = document.createElement('h3');
+        productName.textContent = product.name;
+
+        const productPrice = document.createElement('p');
+        productPrice.textContent = product.price;
+
+        productDiv.appendChild(productName);
+        productDiv.appendChild(productPrice);
+
+        productTile.appendChild(productImage);
+        productTile.appendChild(productDiv);
+
+        productContainer.appendChild(productTile);
+
+        // Add product-divider except after the last product
+        if (index < products.length - 1) {
+          const productDivider = document.createElement('div');
+          productDivider.classList.add('product-divider');
+
+          const dividerPlusImage = document.createElement('div');
+          dividerPlusImage.classList.add('divider-plus-image');
+
+          const plusImage = document.createElement('img');
+          plusImage.src = "{{ 'icons8-plus-24.png' | asset_url }}";
+          plusImage.width = '14';
+
+          dividerPlusImage.appendChild(plusImage);
+          productDivider.appendChild(dividerPlusImage);
+
+          productContainer.appendChild(productDivider);
+        }
+
+
+      });
+
+      var addCartbtn = document.querySelector('[name="add"]');
+      addCartbtn.addEventListener('click', function(){
+        console.log('clicked add but')
+        var formData = new FormData();
+        formData.append('product_id', product.id);
+        formData.append('type', 'click');
+        var options = {
+          method:"POST",
+          body:formData
+        };
+
+        fetch("/apps/proxy",options)
+          .then((res) => res.json())
+          .then((data) => {
+            console.log('Data from click event...');
+        });
+      });
+
+      const poweredByTextDiv = document.createElement('div');
+      poweredByTextDiv.classList.add('powered-by-text-div');
+
+      const poweredByText = document.createElement('p');
+      poweredByText.innerHTML = 'Powered by <a href="#">Super bundle</a>';
+
+      poweredByTextDiv.appendChild(poweredByText);
+      productContainer.appendChild(poweredByTextDiv);
+    }
+
+    var formData = new FormData();
+    formData.append('product_id', product.id);
+
+    var options = {
+      method:"POST",
+      body:formData
+    };
+
+    fetch("/apps/proxy",options)
+    .then((res) => res.json())
+    .then((data) => {
+      console.log(data)
+      var productData = data.responseJson.data.product
+
+      var hasDefault = productData.hasOnlyDefaultVariant
+
+      var productVariant = productData.variants.nodes
+
+      var hasComponents = productVariant[0].requiresComponents
+  var bundle_data = [];
+
+      if(hasComponents){
+        var componentData = productVariant[0].productVariantComponents.nodes
+
+        for(let component of componentData){
+          var title = component.productVariant.displayName;
+          var image = component.productVariant.image ? component.productVariant.image.url: "";
+          var price = component.productVariant.price;
+
+          var componentDefault = component.productVariant.product.hasOnlyDefaultVariant
+
+          if(componentDefault){
+            title = component.productVariant.product.title
+          }
+          if(image == ""){
+            image = component.productVariant.product.featuredImage ? component.productVariant.product.featuredImage.url: ""
+          }
+
+          bundle_data.push({name:title,imageSrc:image,price:price,altText:title});
+          // appendProductTile(title,image,price)
+        }
+        generateProductHTML(bundle_data)
+      }
+
+    })
 </script>
 {% schema %}
 {

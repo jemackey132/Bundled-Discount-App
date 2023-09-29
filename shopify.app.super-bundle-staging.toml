@@ -2,25 +2,25 @@
 
 name = "Super Bundle Staging"
 client_id = "693180954f2c0e9af09a587efe0e8830"
-application_url = "https://architect-accurately-cases-enb.trycloudflare.com"
+application_url = "https://robin-identified-teacher-idea.trycloudflare.com"
 embedded = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,write_files,write_publications"
+scopes = "write_products,write_files,write_publications,write_cart_transforms,read_orders"
 
 [auth]
 redirect_urls = [
-  "https://architect-accurately-cases-enb.trycloudflare.com/auth/callback",
-  "https://architect-accurately-cases-enb.trycloudflare.com/auth/shopify/callback",
-  "https://architect-accurately-cases-enb.trycloudflare.com/api/auth/callback"
+  "https://robin-identified-teacher-idea.trycloudflare.com/auth/callback",
+  "https://robin-identified-teacher-idea.trycloudflare.com/auth/shopify/callback",
+  "https://robin-identified-teacher-idea.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
 api_version = "2023-07"
 
 [app_proxy]
-url = "https://architect-accurately-cases-enb.trycloudflare.com"
+url = "https://robin-identified-teacher-idea.trycloudflare.com"
 subpath = "proxy"
 prefix = "apps"
 

@@ -38,6 +38,7 @@ export async function createProduct(data, graphql) {
         input: {
           title: data.title,
           status: data.status,
+          tags: ["super-bundle"],
           variants: [
             {
               price: data.price,
@@ -332,6 +333,35 @@ export async function attachMedia(data, graphql) {
   }
 }
 
+export async function checkBundleItem(data, graphql) {
+  const query = `query getBundleItem($id: ID!){
+    order(id: $id) {
+      lineItems(first: 10) {
+        nodes {
+          lineItemGroup {
+            id
+            quantity
+            title
+          }
+        }
+      }
+    }
+  }
+  `;
+
+  try {
+    const response = await graphql(query, { variables: { id: data.id } });
+
+    const {
+      data: { order },
+    } = await response.json();
+    console.log(order);
+    return order;
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
 export async function getChannels(graphql) {
   const query = `{
     publications(first: 10) {
@@ -592,3 +622,5 @@ export async function updateBundle(id, data) {
   if (!bundle) return [];
   return bundle;
 }
+
+

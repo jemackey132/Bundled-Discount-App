@@ -1,10 +1,12 @@
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+import { checkBundleItem } from "../bundle.server";
+import shopify from "../shopify.server";
 
 export const action = async ({ request }) => {
-  console.log(request)
-  const { topic, shop, session } = await authenticate.webhook(request);
-
+  
+  const { topic, shop, session, payload, admin } = await authenticate.webhook(request);
+  console.log('check payload and admin: ',payload,admin)
   switch (topic) {
     case "APP_UNINSTALLED":
       if (session) {
@@ -16,8 +18,19 @@ export const action = async ({ request }) => {
     case "SHOP_REDACT":
     case "ORDERS_CREATE":
       if(session){
-        // await db.bundle;
+        
+        // @ts-ignore
+        console.log(payload.id)
+        // @ts-ignore
+        // var client = new shopify.clients.Graphql({session});
+        const getOrder = await checkBundleItem({id:payload.id}, admin.graphql.query);
+        // await db.bundle.update({
+        //   where: { bundle_gid: `gid://shopify/Product/${product_id}` },
+        //   data: { bundle_orders: { increment: 1 } },
+        // });
+        console.log(getOrder);
       }
+      break;
     default:
       throw new Response("Unhandled webhook topic", { status: 404 });
   }
