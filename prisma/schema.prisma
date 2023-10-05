@@ -24,7 +24,7 @@ model Session {
 model Bundle {
   id                    Int      @id @default(autoincrement())
   shop                  String
-  bundle_title          String
+  bundle_title          String   @unique
   bundle_type           String
   bundle_name           String
   bundle_image          String
