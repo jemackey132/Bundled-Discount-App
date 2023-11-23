@@ -38,6 +38,7 @@ export async function createProduct(data, graphql) {
         input: {
           title: data.title,
           status: data.status,
+          tags: ["super-bundle"],
           variants: [
             {
               price: data.price,
@@ -157,17 +158,11 @@ export async function addProductMedia(data, graphql) {
   const size = fs.statSync(genpath).size;
 
   console.log(size);
-  // const size = fs.statSync(handle).size;
-
-  // console.log(file)
-  // console.log(size)
-  // Add the file to the form.
   // @ts-ignore
   // Add the file to the form.
   form.append("file", fs.createReadStream(genpath), {
     filename: name, // Specify the filename here
   });
-  // form.append("file", file);
 
   console.log(form);
   console.log(url);
@@ -181,39 +176,6 @@ export async function addProductMedia(data, graphql) {
     },
   });
   console.log(uploadData);
-
-  // console.log(await uploadData)
-
-  // // Headers
-  // const headers = {
-  //   "Content-Type": "multipart/form-data",
-  //   "Content-Length": size,
-  // };
-  // // if (url.includes("amazon")) {
-  // //   // Need to include the content length for Amazon uploads. If uploading to googleapis then the content-length header will break it.
-  // //   headers["Content-Length"] = 5000; // AWS requires content length to be included in the headers. This may not be automatically passed so you'll need to specify. And ... add 5000 to ensure the upload works. Or else there will be an error saying the data isn't formatted properly.
-  // // }
-
-  // const resform = await fetch(url, {
-  //   method: "POST",
-  //   body: form,
-  //   // @ts-ignore
-  //   headers: headers,
-  // });
-  // console.log(resform);
-  // console.log(await resform.json())
-
-  // console.log(resourceUrl);
-  // const createFileQuery = ``;
-
-  // // Variables
-  // const createFileVariables = {
-  //   files: {
-  //     alt: "alt-tag",
-  //     contentType: "IMAGE",
-  //     originalSource: resourceUrl, // Pass the resource url we generated above as the original source. Shopify will do the work of parsing that url and adding it to files.
-  //   },
-  // };
 
   const upload = await graphql(
     `
@@ -245,40 +207,6 @@ export async function addProductMedia(data, graphql) {
   console.log(resFile);
 
   return resourceUrl;
-
-  // const attachFileres = await graphql(
-  //   `
-  //     mutation productCreateMedia(
-  //       $media: [CreateMediaInput!]!
-  //       $productId: ID!
-  //     ) {
-  //       productCreateMedia(media: $media, productId: $productId) {
-  //         media {
-  //           id
-  //         }
-  //         mediaUserErrors {
-  //           code
-  //           details
-  //           message
-  //         }
-  //         product {
-  //           id
-  //         }
-  //       }
-  //     }
-  //   `,
-  //   {
-  //     variables: {
-  //       resourceUrl,
-  //       productId,
-  //     },
-  //   }
-  // );
-
-  // const attachFile = await attachFileres.json();
-  // const upload = await graphql(createFileQuery, createFileVariables);
-
-  // console.log(await upload.json());
 }
 
 export async function attachMedia(data, graphql) {
@@ -325,8 +253,106 @@ export async function attachMedia(data, graphql) {
     } = await response.json();
 
     return media;
-    // const responseData = response.data; // Access the response data
-    // console.log(responseData); // Handle the response data here
+
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
+export async function checkBundleItem(apidata, graphql) {
+  try {
+    const response = await graphql.query({
+      data: {
+        query: `query getBundleItem($id: ID!){
+          order(id: $id) {
+            lineItems(first: 10) {
+              nodes {
+                lineItemGroup {
+                  id
+                  quantity
+                  title
+                }
+              }
+            }
+          }
+        }`,
+        variables: {
+          id: `gid://shopify/Order/${apidata.id}`,
+        },
+      },
+    });
+
+    console.log(response.body.data.order.lineItems.nodes);
+    return response.body.data.order.lineItems.nodes;
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
+export async function getChannels(graphql) {
+  const query = `{
+    publications(first: 10) {
+      nodes {
+        id
+        name
+      }
+    }
+  }
+  `;
+
+  try {
+    const response = await graphql(query);
+
+    const {
+      data: { publications },
+    } = await response.json();
+    console.log(publications);
+    return publications;
+  } catch (error) {
+    console.error("Error:", error);
+  }
+}
+
+export async function publishProduct(data, graphql) {
+  const channels = await getChannels(graphql);
+
+  console.log(channels);
+
+  const channel = channels.nodes.find((obj) => obj.name === "Online Store");
+
+  const mutation = `
+  mutation publishablePublish($id: ID!, $input: [PublicationInput!]!) {
+    publishablePublish(id: $id, input: $input) {
+      publishable {
+        availablePublicationCount
+        publicationCount
+      }
+      shop {
+        publicationCount
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }  
+  `;
+
+  try {
+    const response = await graphql(mutation, {
+      variables: {
+        id: data.gid,
+        input: {
+          publicationId: channel.id,
+        },
+      },
+    });
+
+    const {
+      data: { publishablePublishToCurrentChannel },
+    } = await response.json();
+    console.log(publishablePublishToCurrentChannel);
+    return publishablePublishToCurrentChannel;
   } catch (error) {
     console.error("Error:", error);
   }
@@ -515,6 +541,14 @@ export async function getBundle(shop, id) {
   return bundle;
 }
 
+export async function checkBundle(title, shop) {
+  const bundle = await db.bundle.findFirst({
+    where: { shop: shop, bundle_title: title },
+  });
+  if (!bundle) return null;
+  return bundle;
+}
+
 export async function updateBundle(id, data) {
   const bundle = await db.bundle.update({
     where: { id: parseInt(id) },
@@ -523,3 +557,4 @@ export async function updateBundle(id, data) {
   if (!bundle) return [];
   return bundle;
 }
+

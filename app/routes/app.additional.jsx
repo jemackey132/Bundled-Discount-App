@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { redirect } from "react-router-dom";
 // import { redirect } from "@remix-run/node"; // or cloudflare/deno
@@ -59,6 +59,14 @@ export const loader = async ({ request }) => {
 export default function AdditionalPage() {
   const cnav = useNavigate();
   const fetcher = useFetcher();
+  const [viewCount, setViewCount] = useState(0);
+  const [clickCount, setClickCount] = useState(0); 
+  const [orderCount, setOrderCount] = useState(0); 
+  const [saleCount, setSaleCount] = useState(0); 
+
+  const loadData = useRef(false);
+
+
 
   const [selected, setSelected] = useState(0);
   const [tselected, setTSelected] = useState(0);
@@ -79,7 +87,7 @@ export default function AdditionalPage() {
   //   return () => document.removeEventListener("visibilitychange", revalidate);
   // }, []);
 
-  console.log(bundleData);
+  console.log('(88)Bundle Data: ', bundleData);
 
   const [bundlepopup, setBundlePopup] = useState(false);
 
@@ -89,9 +97,23 @@ export default function AdditionalPage() {
   );
 
   const handleTabChange = useCallback(
-    (selectedTabIndex) => setSelected(selectedTabIndex),
+    (selectedTabIndex) => {
+      loadData.current = false;
+      setSelected(selectedTabIndex)
+    },
     []
   );
+
+  useEffect(()=>{
+    console.log('(108)index state: ', selected);
+    if((selected == 0 || selected == 3) && loadData.current == false){
+      console.log('condition ture')
+      fetcher.load("/app/additional");
+      loadData.current = true;
+    }
+  }, [selected])
+
+  // console.log('fetcher Data: ', fetcher);
 
   const handleTTabChange = useCallback(
     (selectedTTabIndex) => setTSelected(selectedTTabIndex),
@@ -152,8 +174,8 @@ export default function AdditionalPage() {
       <Badge status="success">Active</Badge>,
       "$ 0",
       "0",
-      "0",
-      "0",
+      "100",
+      "10",
     ],
     [
       <div className="avatar-row">
@@ -439,7 +461,7 @@ export default function AdditionalPage() {
 
   useEffect(() => {
     // Map the bundle data to the desired format
-    const mappedTableData = bundleData.map((bundle) => ({
+    const mappedTableData = data.map((bundle) => ({
       id: bundle.id,
       bundle: (
         <div className="avatar-row">
@@ -466,9 +488,19 @@ export default function AdditionalPage() {
         bundle.bundle_discount_type == "percentage"
           ? `${bundle.bundle_discount_value}% off`
           : `$${bundle.bundle_discount_value} off`,
+      
     }));
 
-    const mappedRows = bundleData.map((bundle) => [
+    
+
+    const mappedRows = data.map((bundle) => [
+      // "Bundle items",
+        // "Bundle name",
+        // "Status",
+        // "Sales value",
+        // "Sales number",
+        // "Clicks",
+        // "Views",
       <div className="avatar-row">
         {bundle.bundle_items.map((item) => (
           <Avatar customer key={item.id} name={item.name} source={item.image} />
@@ -480,17 +512,57 @@ export default function AdditionalPage() {
           {bundle.bundle_status ? "active" : "inactive"}
         </Badge>
       </div>,
-      bundle.bundle_discount_type === "percentage"
-        ? `${bundle.bundle_discount_value}% off`
-        : `$${bundle.bundle_discount_value} off`,
+      // bundle.bundle_discount_type === "percentage"
+      // ? `${bundle.bundle_discount_value}% off`
+      // : `$${bundle.bundle_discount_value} `,
+      bundle.bundle_sales,
+      bundle.bundle_orders,
+      bundle.bundle_clicks,
+      bundle.bundle_views
+    ]);
+
+    const recentMappedRows = data.map((bundle) => [
+      <div className="avatar-row">
+        {bundle.bundle_items.map((item) => (
+          <Avatar customer key={item.id} name={item.name} source={item.image} />
+        ))}
+      </div>,
+      bundle.bundle_name,
+      <div className="custom-badge">
+        <Badge status={bundle.bundle_status ? "success" : "default"}>
+          {bundle.bundle_status ? "active" : "inactive"}
+        </Badge>
+      </div>,
+       bundle.bundle_discount_type === "percentage"
+       ? `${bundle.bundle_discount_value}% off`
+       : `$${bundle.bundle_discount_value} `,
     ]);
 
     setRows(mappedRows);
-
+    setRecentRows(recentMappedRows)
     // Set the mapped data in the state
     setOrders(mappedTableData);
-  }, [bundleData]);
 
+    let v = 0;
+    let c = 0;
+    let o = 0;
+    let s = 0;
+    data.forEach(e => {
+      v+=e.bundle_views;
+      c+=e.bundle_clicks;
+      o+=e.bundle_orders;
+      s+=e.bundle_sales;
+
+    });
+
+    setViewCount(v);
+    setClickCount(c);
+    setOrderCount(o);
+    setSaleCount(s);
+
+
+  }, [data]);
+  //use effect closed
   const resourceName = {
     singular: "bundle",
     plural: "Bundles",
@@ -560,7 +632,7 @@ export default function AdditionalPage() {
       panelID: "Settings-fitted-Ccontent-2",
     },
   ];
-
+  const [recentRows,setRecentRows] = useState([])
   const [rows, setRows] = useState([
     [
       <div className="avatar-row">
@@ -658,7 +730,7 @@ export default function AdditionalPage() {
                                       "Status",
                                       "Discount",
                                     ]}
-                                    rows={rows}
+                                    rows={recentRows}
                                     footerContent={
                                       <Button
                                         onClick={() => handleTabChange(1)}
@@ -674,11 +746,11 @@ export default function AdditionalPage() {
                                 <Card>
                                   <EmptyState
                                     heading="No bundles yet!"
-                                    action={{ content: "Add transfer" }}
-                                    secondaryAction={{
-                                      content: "Learn more",
-                                      url: "https://help.shopify.com",
-                                    }}
+                                    // action={{ content: "Add transfer" }}
+                                    // secondaryAction={{
+                                    //   content: "Learn more",
+                                    //   url: "https://help.shopify.com",
+                                    // }}
                                     image={welcome}
                                   >
                                     <p>
@@ -709,7 +781,7 @@ export default function AdditionalPage() {
                                         Bundle view
                                       </Text>
                                       <Text variant="headingSm" as="p">
-                                        0
+                                        {viewCount}
                                       </Text>
                                     </VerticalStack>
                                   </VerticalStack>
@@ -731,7 +803,7 @@ export default function AdditionalPage() {
                                         Bundle clicks
                                       </Text>
                                       <Text variant="headingSm" as="p">
-                                        0
+                                        {clickCount}
                                       </Text>
                                     </VerticalStack>
                                   </VerticalStack>
@@ -753,7 +825,7 @@ export default function AdditionalPage() {
                                         Sold bundle quantity
                                       </Text>
                                       <Text variant="headingSm" as="p">
-                                        0
+                                        {orderCount}
                                       </Text>
                                     </VerticalStack>
                                   </VerticalStack>
@@ -775,7 +847,7 @@ export default function AdditionalPage() {
                                         Total sale value
                                       </Text>
                                       <Text variant="headingSm" as="p">
-                                        0
+                                        $ {saleCount}
                                       </Text>
                                     </VerticalStack>
                                   </VerticalStack>
@@ -1106,7 +1178,7 @@ export default function AdditionalPage() {
                                 Sales value on bundles
                               </Text>
                               <Text variant="bodyLg" as="p">
-                                $ 0
+                                $ {saleCount}
                               </Text>
                             </VerticalStack>
                           </Card>
@@ -1116,7 +1188,7 @@ export default function AdditionalPage() {
                                 Numbers of sold bundles
                               </Text>
                               <Text variant="bodyLg" as="p">
-                                0
+                                {orderCount}
                               </Text>
                             </VerticalStack>
                           </Card>
@@ -1126,7 +1198,7 @@ export default function AdditionalPage() {
                                 Bundles view
                               </Text>
                               <Text variant="bodyLg" as="p">
-                                0
+                                {viewCount}
                               </Text>
                             </VerticalStack>
                           </Card>
@@ -1136,7 +1208,7 @@ export default function AdditionalPage() {
                                 Bundles clicks
                               </Text>
                               <Text variant="bodyLg" as="p">
-                                0
+                                {clickCount}
                               </Text>
                             </VerticalStack>
                           </Card>
@@ -1162,7 +1234,7 @@ export default function AdditionalPage() {
                             "Clicks",
                             "Views",
                           ]}
-                          rows={analyticstablerows}
+                          rows={rows}
                           footerContent={
                             <div className="analytics-table-pagination">
                               <Pagination

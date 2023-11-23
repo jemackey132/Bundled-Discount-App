@@ -57,6 +57,7 @@ import {
   updateComponents,
   updateProduct,
   attachMedia,
+  publishProduct,
 } from "../bundle.server";
 
 export async function action({ request }) {
@@ -77,6 +78,8 @@ export async function action({ request }) {
   );
 
   const file = formData.get("bundle_image");
+
+  console.log("fiel",file)
   // @ts-ignore
 
   // const data = await request.formData();
@@ -92,8 +95,8 @@ export async function action({ request }) {
   // @ts-ignore
   data.bundle_time_status = data.bundle_time_status === "true" ? true : false;
   let resUrl = false;
-  if (file) {
-    console.log(file);
+  if (file != "undefined") {
+    console.log("File Found")
     // @ts-ignore
     const filePath = `uploads/${file.name}`;
     resUrl = await addProductMedia(
@@ -190,6 +193,8 @@ export async function action({ request }) {
       data.bundle_media = mediadId[0].id;
     }
 
+    await publishProduct({ gid: productGid }, admin.graphql);
+
     await addBundle(data);
 
     console.log(productId, productPrice);
@@ -211,7 +216,8 @@ export async function action({ request }) {
     // data.bundle_image = "";
     let oldData = await getBundle(session.shop, id);
     console.log("Old data", oldData);
-
+    // await publishProduct({ gid: oldData.bundle_gid }, admin.graphql);
+    // return created("Updated....");
     let productVariant = [];
     let totalPrice = 0;
     let originalPrice = 0;
@@ -321,16 +327,16 @@ export default function AdditionalPage() {
   function getCurrentDate() {
     const today = new Date();
     const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   }
 
   // Function to get the current time in "HH:MM" format
   function getCurrentTime() {
     const today = new Date();
-    const hours = String(today.getHours()).padStart(2, '0');
-    const minutes = String(today.getMinutes()).padStart(2, '0');
+    const hours = String(today.getHours()).padStart(2, "0");
+    const minutes = String(today.getMinutes()).padStart(2, "0");
     return `${hours}:${minutes}`;
   }
 
@@ -788,7 +794,7 @@ export default function AdditionalPage() {
                             {uploadedFile}
                             {fileUpload}
                           </DropZone>
-                          
+
                           <Text as="p">
                             Your customers will see this as a product image on
                             the bundle product display.
