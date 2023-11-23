@@ -153,7 +153,7 @@ export default function AdditionalPage() {
 
   const analyticsfilteroptions = [
     {
-      label: "from beginning to till now",
+      label: "from beginning to now",
       value: "begin_to_now",
       prefix: <Icon source={SortMinor} />,
     },
@@ -778,7 +778,7 @@ export default function AdditionalPage() {
                                       inlineAlign="center"
                                     >
                                       <Text variant="headingSm" as="p">
-                                        Bundle view
+                                        Bundle views
                                       </Text>
                                       <Text variant="headingSm" as="p">
                                         {viewCount}
@@ -844,7 +844,7 @@ export default function AdditionalPage() {
                                       inlineAlign="center"
                                     >
                                       <Text variant="headingSm" as="p">
-                                        Total sale value
+                                        Total sales
                                       </Text>
                                       <Text variant="headingSm" as="p">
                                         $ {saleCount}
@@ -1175,7 +1175,7 @@ export default function AdditionalPage() {
                           <Card>
                             <VerticalStack gap="4" inlineAlign="center">
                               <Text variant="bodyMd" as="p">
-                                Sales value on bundles
+                                Total bundle sales
                               </Text>
                               <Text variant="bodyLg" as="p">
                                 $ {saleCount}
@@ -1185,7 +1185,7 @@ export default function AdditionalPage() {
                           <Card>
                             <VerticalStack gap="4" inlineAlign="center">
                               <Text variant="bodyMd" as="p">
-                                Numbers of sold bundles
+                                Number of bundles sold
                               </Text>
                               <Text variant="bodyLg" as="p">
                                 {orderCount}
@@ -1229,8 +1229,8 @@ export default function AdditionalPage() {
                             "Bundle items",
                             "Bundle name",
                             "Status",
-                            "Sales value",
-                            "Sales number",
+                            "Total sales",
+                            "Number sold",
                             "Clicks",
                             "Views",
                           ]}
@@ -1259,7 +1259,7 @@ export default function AdditionalPage() {
                     <>
                       <div className="settings-tab-title">
                         <Text variant="headingLg" as="h1">
-                          Setting
+                          Settings
                         </Text>
                       </div>
                       <Grid
@@ -1335,7 +1335,7 @@ export default function AdditionalPage() {
                                   />
                                   <VerticalStack>
                                     <Text as="h2" variant="headingMd">
-                                      Featured Request
+                                      Feature Request
                                     </Text>
                                     <Text as="p" variant="bodyMd">
                                       Tell us what feature you need
@@ -1361,7 +1361,7 @@ export default function AdditionalPage() {
                                       Plan
                                     </Text>
                                     <Text as="p" variant="bodyMd">
-                                      Manage and view your fast Bundle plan
+                                      Manage your plan
                                     </Text>
                                   </VerticalStack>
                                 </HorizontalStack>
@@ -1464,9 +1464,7 @@ export default function AdditionalPage() {
                                           as="p"
                                           alignment="start"
                                         >
-                                          Offer a discount when a customer buys
-                                          some fixed products together. (Combo
-                                          product option is available)
+                                          Offer a discount when customers buy select products together)
                                         </Text>
                                       </div>
                                     </VerticalStack>
@@ -1516,8 +1514,7 @@ export default function AdditionalPage() {
                                           as="p"
                                           alignment="start"
                                         >
-                                          Offer a discount when a customer buys
-                                          several instances of the same product.
+                                          Offer a discount when customers buy a minimum quantity of a single product.
                                         </Text>
                                       </div>
                                     </VerticalStack>
@@ -1622,9 +1619,7 @@ export default function AdditionalPage() {
                                           as="p"
                                           alignment="start"
                                         >
-                                          Offer a discount when a customer buys
-                                          specified numbers of products from
-                                          specified collections.
+                                          Offer a discount when customers buy minimum quantities of two or more products.
                                         </Text>
                                       </div>
                                     </VerticalStack>
