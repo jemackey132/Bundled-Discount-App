@@ -974,9 +974,11 @@ export default function AdditionalPage() {
                   </Button>
                 </div>
               )}
-              <Button loading={loader} primary onClick={handleSubmit}>
-                {formState.bundle_id != 0 ? "Update bundle" : "Create bundle"}
-              </Button>
+              <div className="btn-primary-black">
+                <Button loading={loader} onClick={handleSubmit}>
+                  {formState.bundle_id != 0 ? "Update bundle" : "Create bundle"}
+                </Button>
+              </div>
             </HorizontalStack>
           </Layout.Section>
         </Layout>

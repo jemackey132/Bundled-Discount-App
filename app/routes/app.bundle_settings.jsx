@@ -90,7 +90,7 @@ export default function AdditionalPage() {
                     onChange={handleSubChange}
                   />
                   <Banner title="Install subscription app" status="info">
-                    <Text variant="bodySm" as="p">
+                    <Text variant="bodyMd" as="p">
                       Install any subscription app on your store to access this
                       feature.
                     </Text>
@@ -287,7 +287,7 @@ export default function AdditionalPage() {
                   <Banner
                     status="info"
                   >
-                    <Text variant="bodySm" as="p">This option is only available for the Fixed-cost plan.</Text>
+                    <Text variant="bodyMd" as="p">This option is only available for the Fixed-cost plan.</Text>
                   </Banner>
                 </VerticalStack>
               </Card>

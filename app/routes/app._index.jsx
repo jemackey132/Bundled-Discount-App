@@ -6,7 +6,7 @@ import {
   useNavigation,
   useSubmit,
 } from "@remix-run/react";
-import welcome from "../../public/finances_minor.svg";
+import welcome from "../../public/bandana-logo.svg";
 import {
   Page,
   Layout,

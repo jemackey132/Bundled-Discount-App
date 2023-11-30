@@ -12,7 +12,7 @@ import {
   useNavigation,
   useSubmit,
 } from "@remix-run/react";
-import welcome from "../../public/finances_minor.svg";
+import welcome from "../../public/bandana-logo.svg";
 import {
   Page,
   Layout,
@@ -23,6 +23,7 @@ import {
   Tabs,
   Frame,
   Button,
+  Banner,
   ButtonGroup,
   HorizontalStack,
   HorizontalGrid,
@@ -690,8 +691,8 @@ export default function AdditionalPage() {
                               answers to common questions. Stay tuned for
                               updates!
                             </p>
-                            <div style={{ color: "#008060" }}>
-                              <Button monochrome outline>
+                            <div className="btn-secondary-outlined">
+                              <Button outline>
                                 Read now
                               </Button>
                             </div>
@@ -710,9 +711,11 @@ export default function AdditionalPage() {
                                 <Text variant="headingMd" as="h2">
                                   Recent Bundle
                                 </Text>
-                                <Button primary onClick={toggleBundlePopup}>
-                                  Create New Bundle
-                                </Button>
+                                <div className="btn-primary-black">
+                                  <Button onClick={toggleBundlePopup}>
+                                    Create New Bundle
+                                  </Button>
+                                </div>
                               </HorizontalStack>
 
                               {rows.length > 0 ? (
@@ -870,9 +873,11 @@ export default function AdditionalPage() {
                           <Text variant="headingMd" as="h1">
                             Bundles
                           </Text>
-                          <Button primary onClick={toggleBundlePopup}>
+                          <div className="btn-primary-black">
+                          <Button onClick={toggleBundlePopup}>
                             Create new Bundle
                           </Button>
+                          </div>
                         </HorizontalStack>
                       </div>
                       <Tabs
@@ -965,7 +970,7 @@ export default function AdditionalPage() {
                                 <div>
                                   <HorizontalStack wrap={false} gap="2">
                                     <Button disabled>
-                                      <HorizontalStack wrap={false}>
+                                      <HorizontalStack wrap={false} blockAlign="center">
                                         <Icon source={SortMinor} />
                                         <Text variant="bodySm" as="p">
                                           Saved
@@ -974,7 +979,7 @@ export default function AdditionalPage() {
                                     </Button>
                                     <Button>
                                       {" "}
-                                      <HorizontalStack wrap={false}>
+                                      <HorizontalStack wrap={false} blockAlign="center"> 
                                         <Icon source={SortMinor} />
                                         <Text variant="bodySm" as="p">
                                           Sort
@@ -1047,21 +1052,23 @@ export default function AdditionalPage() {
                       </VerticalStack>
                       <VerticalStack gap="2">
                         <Card>
-                          <Text as="h2" variant="headingMd">
-                            Design
-                          </Text>
-                          <div className="design-card-subtitle">
-                            <Text as="p" variant="bodyMd">
-                              You can customize different design types of
-                              bundles in different displays and change the
-                              colors, typography and other items in accordance
-                              with your shop design.
+                          
+                            <Text as="h2" variant="headingMd">
+                              Design
                             </Text>
-                          </div>
+                            <div className="design-card-subtitle">
+                              <Text as="p" variant="bodyMd">
+                                You can customize different design types of
+                                bundles in different displays and change the
+                                colors, typography and other items in accordance
+                                with your shop design.
+                              </Text>
+                            </div>
                           <div
+                          className="btn-primary-black btn-radius-4"
                             style={{ display: "flex", justifyContent: "end" }}
                           >
-                            <Button primary>Customize</Button>
+                            <Button>Customize</Button>
                           </div>
                         </Card>
                         <Divider />
@@ -1078,47 +1085,59 @@ export default function AdditionalPage() {
                           </VerticalStack>
                           <HorizontalGrid columns={2} gap="8">
                             <Card>
-                              <Text as="h2" variant="headingMd">
-                                Bundles page
-                              </Text>
-                              <div className="design-card-subtitle">
-                                <Text as="p" variant="bodySm">
-                                  Customize the priority of the bundles
-                                  displayed on the bundles page, and you can
-                                  display important bundles at the top of the
-                                  screen.
-                                </Text>
-                              </div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "end",
-                                  marginTop: "7px",
-                                }}
-                              >
-                                <Button primary>Customize</Button>
+
+                              <div style={{ display: "flex", flexDirection: "column", justifyContent:"space-between", height:"100%" }}>
+                                <div>
+                                  <Text as="h2" variant="headingMd">
+                                    Bundles page
+                                  </Text>
+                                  <div className="design-card-subtitle">
+                                    <Text as="p" variant="bodySm">
+                                      Customize the priority of the bundles
+                                      displayed on the bundles page, and you can
+                                      display important bundles at the top of the
+                                      screen.
+                                    </Text>
+                                  </div>
+                                </div>
+                                  <div
+                                  className="btn-primary-black btn-radius-4"
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "end",
+                                      marginTop: "7px",
+                                    }}
+                                  >
+                                    <Button>Customize</Button>
+                                  </div>
                               </div>
                             </Card>
                             <Card>
-                              <Text as="h2" variant="headingMd">
-                                Products page
-                              </Text>
-                              <div className="design-card-subtitle">
-                                <Text as="p" variant="bodySm">
-                                  From the list of products that have bundles,
-                                  select the product you want and customize the
-                                  priority in which the bundles are displayed on
-                                  the page of that product.
-                                </Text>
-                              </div>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "end",
-                                  marginTop: "7px",
-                                }}
-                              >
-                                <Button primary>Customize</Button>
+                              <div style={{ display: "flex", flexDirection: "column", justifyContent:"space-between", height:"100%" }}>
+                                <div>
+                                  <Text as="h2" variant="headingMd">
+                                    Products page
+                                  </Text>
+                                  <div className="design-card-subtitle">
+                                    <Text as="p" variant="bodySm">
+                                      From the list of products that have bundles,
+                                      select the product you want and customize the
+                                      priority in which the bundles are displayed on
+                                      the page of that product.
+                                    </Text>
+                                  </div>
+
+                                </div>
+                                <div
+                                  className="btn-primary-black btn-radius-4"
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "end",
+                                    marginTop: "7px",
+                                  }}
+                                >
+                                  <Button primary>Customize</Button>
+                                </div>
                               </div>
                             </Card>
                           </HorizontalGrid>
@@ -1422,7 +1441,7 @@ export default function AdditionalPage() {
                     </>
                   )}
 
-                  <div style={{ height: "500px" }}>
+                  <div className="bundle-popup-main">
                     <Modal
                       large
                       open={bundlepopup}
@@ -1441,10 +1460,11 @@ export default function AdditionalPage() {
                                 }
                                 removeUnderline={true}
                               >
-                                <VerticalStack gap="2">
+                                <VerticalStack gap="5">
                                   <HorizontalStack
                                     wrap={false}
                                     align="space-between"
+                                    blockAlign="flex-start"
                                     gap="2"
                                   >
                                     <>
@@ -1455,7 +1475,7 @@ export default function AdditionalPage() {
                                       />
                                     </>
                                     <VerticalStack inlineAlign="start">
-                                      <Text variant="headingSm" as="h2">
+                                      <Text variant="headingMd" as="h2">
                                         Bundle
                                       </Text>
                                       <div className="bundle-popup-button-subtext">
@@ -1469,21 +1489,13 @@ export default function AdditionalPage() {
                                       </div>
                                     </VerticalStack>
                                   </HorizontalStack>
-                                  <Card
-                                    padding={{
-                                      xs: "2",
-                                      sm: "2",
-                                      md: "2",
-                                      lg: "2",
-                                      xl: "2",
-                                    }}
-                                  >
+                                  <Banner tone="info">
                                     <div className="bundle-popup-button-footer-text">
                                       <Text variant="bodySm" as="p">
                                         Example: Buy X + Y to get 20% off.
                                       </Text>
                                     </div>
-                                  </Card>
+                                  </Banner>
                                 </VerticalStack>
                               </Link>
                             </Grid.Cell>
@@ -1491,10 +1503,11 @@ export default function AdditionalPage() {
                               columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
                             >
                               <Link removeUnderline={true}>
-                                <VerticalStack gap="2">
+                                <VerticalStack gap="5">
                                   <HorizontalStack
                                     wrap={false}
                                     align="space-between"
+                                    blockAlign="flex-start"
                                     gap="2"
                                   >
                                     <>
@@ -1505,7 +1518,7 @@ export default function AdditionalPage() {
                                       />
                                     </>
                                     <VerticalStack inlineAlign="start">
-                                      <Text variant="headingSm" as="h2">
+                                      <Text variant="headingMd" as="h2">
                                         Volume discount
                                       </Text>
                                       <div className="bundle-popup-button-subtext">
@@ -1519,22 +1532,14 @@ export default function AdditionalPage() {
                                       </div>
                                     </VerticalStack>
                                   </HorizontalStack>
-                                  <Card
-                                    padding={{
-                                      xs: "2",
-                                      sm: "2",
-                                      md: "2",
-                                      lg: "2",
-                                      xl: "2",
-                                    }}
-                                  >
+                                  <Banner tone="info">
                                     <div className="bundle-popup-button-footer-text">
                                       <Text variant="bodySm" as="p">
                                         Example: BOGO, Buy 3 items of X to get
                                         20% off.
                                       </Text>
                                     </div>
-                                  </Card>
+                                  </Banner>
                                 </VerticalStack>
                               </Link>
                             </Grid.Cell>
@@ -1542,10 +1547,11 @@ export default function AdditionalPage() {
                               columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
                             >
                               <Link removeUnderline={true}>
-                                <VerticalStack gap="2">
+                                <VerticalStack gap="5">
                                   <HorizontalStack
                                     wrap={false}
                                     align="space-between"
+                                    blockAlign="flex-start"
                                     gap="2"
                                   >
                                     <>
@@ -1556,7 +1562,7 @@ export default function AdditionalPage() {
                                       />
                                     </>
                                     <VerticalStack inlineAlign="start">
-                                      <Text variant="headingSm" as="h2">
+                                      <Text variant="headingMd" as="h2">
                                         Product mix & match
                                       </Text>
                                       <div className="bundle-popup-button-subtext">
@@ -1573,22 +1579,14 @@ export default function AdditionalPage() {
                                       </div>
                                     </VerticalStack>
                                   </HorizontalStack>
-                                  <Card
-                                    padding={{
-                                      xs: "2",
-                                      sm: "2",
-                                      md: "2",
-                                      lg: "2",
-                                      xl: "2",
-                                    }}
-                                  >
+                                  <Banner tone="info">
                                     <div className="bundle-popup-button-footer-text">
                                       <Text variant="bodySm" as="p">
                                         Example: Buy at least 2 items from X, Y,
                                         Z to get 20% off.
                                       </Text>
                                     </div>
-                                  </Card>
+                                  </Banner>
                                 </VerticalStack>
                               </Link>
                             </Grid.Cell>
@@ -1596,10 +1594,11 @@ export default function AdditionalPage() {
                               columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
                             >
                               <Link removeUnderline={true}>
-                                <VerticalStack gap="2">
+                                <VerticalStack gap="5">
                                   <HorizontalStack
                                     wrap={false}
                                     align="space-between"
+                                    blockAlign="flex-start"
                                     gap="2"
                                   >
                                     <>
@@ -1610,7 +1609,7 @@ export default function AdditionalPage() {
                                       />
                                     </>
                                     <VerticalStack inlineAlign="start">
-                                      <Text variant="headingSm" as="h2">
+                                      <Text variant="headingMd" as="h2">
                                         Collection mix & match
                                       </Text>
                                       <div className="bundle-popup-button-subtext">
@@ -1624,22 +1623,14 @@ export default function AdditionalPage() {
                                       </div>
                                     </VerticalStack>
                                   </HorizontalStack>
-                                  <Card
-                                    padding={{
-                                      xs: "2",
-                                      sm: "2",
-                                      md: "2",
-                                      lg: "2",
-                                      xl: "2",
-                                    }}
-                                  >
+                                  <Banner tone="info">
                                     <div className="bundle-popup-button-footer-text">
                                       <Text variant="bodySm" as="p">
                                         Example: Buy 4 items from collection X
                                         and 2 from collection Y to get $30 off.
                                       </Text>
                                     </div>
-                                  </Card>
+                                  </Banner>
                                 </VerticalStack>
                               </Link>
                             </Grid.Cell>
@@ -1647,10 +1638,11 @@ export default function AdditionalPage() {
                               columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
                             >
                               <Link removeUnderline={true}>
-                                <VerticalStack gap="2">
+                                <VerticalStack gap="5">
                                   <HorizontalStack
                                     wrap={false}
                                     align="space-between"
+                                    blockAlign="flex-start"
                                     gap="2"
                                   >
                                     <>
@@ -1661,7 +1653,7 @@ export default function AdditionalPage() {
                                       />
                                     </>
                                     <VerticalStack inlineAlign="start">
-                                      <Text variant="headingSm" as="h2">
+                                      <Text variant="headingMd" as="h2">
                                         Buy X get Y
                                       </Text>
                                       <div className="bundle-popup-button-subtext">
@@ -1677,22 +1669,14 @@ export default function AdditionalPage() {
                                       </div>
                                     </VerticalStack>
                                   </HorizontalStack>
-                                  <Card
-                                    padding={{
-                                      xs: "2",
-                                      sm: "2",
-                                      md: "2",
-                                      lg: "2",
-                                      xl: "2",
-                                    }}
-                                  >
+                                  <Banner tone="info">
                                     <div className="bundle-popup-button-footer-text">
                                       <Text variant="bodySm" as="p">
                                         Example: Buy X and get Y for free or Buy
                                         X and get Y with 20% off.
                                       </Text>
                                     </div>
-                                  </Card>
+                                  </Banner>
                                 </VerticalStack>
                               </Link>
                             </Grid.Cell>
@@ -1700,10 +1684,11 @@ export default function AdditionalPage() {
                               columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
                             >
                               <Link removeUnderline={true}>
-                                <VerticalStack gap="2">
+                                <VerticalStack gap="5">
                                   <HorizontalStack
                                     wrap={false}
                                     align="space-between"
+                                    blockAlign="flex-start"
                                     gap="2"
                                   >
                                     <>
@@ -1714,7 +1699,7 @@ export default function AdditionalPage() {
                                       />
                                     </>
                                     <VerticalStack inlineAlign="start">
-                                      <Text variant="headingSm" as="h2">
+                                      <Text variant="headingMd" as="h2">
                                         Frequently bought together
                                       </Text>
                                       <div className="bundle-popup-button-subtext">
@@ -1731,22 +1716,14 @@ export default function AdditionalPage() {
                                       </div>
                                     </VerticalStack>
                                   </HorizontalStack>
-                                  <Card
-                                    padding={{
-                                      xs: "2",
-                                      sm: "2",
-                                      md: "2",
-                                      lg: "2",
-                                      xl: "2",
-                                    }}
-                                  >
+                                  <Banner>
                                     <div className="bundle-popup-button-footer-text">
                                       <Text variant="bodySm" as="p">
                                         Example: Y and Z are frequently bought
                                         together with X.
                                       </Text>
                                     </div>
-                                  </Card>
+                                  </Banner>
                                 </VerticalStack>
                               </Link>
                             </Grid.Cell>

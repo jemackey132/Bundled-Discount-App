@@ -2,19 +2,19 @@
 
 name = "bandana-stagging"
 client_id = "5343d8966b21574e561faffdbcb54cc8"
-application_url = "https://loose-budget-divorce-offshore.trycloudflare.com"
+application_url = "https://writes-nutrition-google-ghana.trycloudflare.com"
 embedded = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,write_content"
+scopes = "write_products,write_files,write_publications,write_cart_transforms,read_orders"
 
 [auth]
 redirect_urls = [
-  "https://loose-budget-divorce-offshore.trycloudflare.com/auth/callback",
-  "https://loose-budget-divorce-offshore.trycloudflare.com/auth/shopify/callback",
-  "https://loose-budget-divorce-offshore.trycloudflare.com/api/auth/callback",
-  "https://loose-budget-divorce-offshore.trycloudflare.com/.shopify/graphiql/auth/callback"
+  "https://writes-nutrition-google-ghana.trycloudflare.com/auth/callback",
+  "https://writes-nutrition-google-ghana.trycloudflare.com/auth/shopify/callback",
+  "https://writes-nutrition-google-ghana.trycloudflare.com/api/auth/callback",
+  "https://writes-nutrition-google-ghana.trycloudflare.com/.shopify/graphiql/auth/callback"
 ]
 
 [webhooks]
