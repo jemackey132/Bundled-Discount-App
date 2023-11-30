@@ -35,10 +35,12 @@ export const action = async ({ request }) => {
 
         if (getBundle) {
           let oldSales = getBundle.bundle_sales;
-          oldSales += payload.current_total_price;
+          console.log("Old Sales: ", oldSales);
+          console.log("Order Price: ", payload.current_total_price);
+          oldSales = parseFloat(oldSales) + parseFloat(payload.current_total_price);
           await db.bundle.update({
             where: { id: getBundle.id },
-            data: { bundle_orders: { increment: 1 }, bundle_sales: oldSales },
+            data: { bundle_orders: { increment: 1 }, bundle_sales: parseFloat(oldSales.toFixed(2)) },
           });
         }
 

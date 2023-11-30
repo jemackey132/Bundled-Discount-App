@@ -749,11 +749,11 @@ export default function AdditionalPage() {
                                 <Card>
                                   <EmptyState
                                     heading="No bundles yet!"
-                                    action={{ content: "Add transfer" }}
-                                    secondaryAction={{
-                                      content: "Learn more",
-                                      url: "https://help.shopify.com",
-                                    }}
+                                    // action={{ content: "Add transfer" }}
+                                    // secondaryAction={{
+                                    //   content: "Learn more",
+                                    //   url: "https://help.shopify.com",
+                                    // }}
                                     image={welcome}
                                   >
                                     <p>

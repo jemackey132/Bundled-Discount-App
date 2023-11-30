@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 name = "super-bundle"
-client_id = "8862891f33ff668f5c02a15365e80200"
+client_id = "f2ba8fb09ad4efddc394c334eefa997a"
 application_url = "https://symbols-hardware-approximately-cork.trycloudflare.com"
 embedded = true
 

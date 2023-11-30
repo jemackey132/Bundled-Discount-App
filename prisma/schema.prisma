@@ -42,7 +42,7 @@ model Bundle {
   bundle_views          Int      @default(0)
   bundle_clicks         Int      @default(0)
   bundle_orders         Int      @default(0)
-  bundle_sales          Int      @default(0)
+  bundle_sales          Float    @default(0)
   bundle_gid            String?  @unique
   bundle_handle         String?
   bundle_price          String?
