@@ -9,4 +9,4 @@ COPY . .
 RUN npm install
 RUN npx prisma generate && npm run build
 
-CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]
+CMD ["sh", "-c", "echo 'Running migrations...' && npx prisma migrate deploy && echo 'Starting remix-serve...' && node node_modules/@remix-run/serve/dist/cli.js build 2>&1"]
