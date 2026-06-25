@@ -2,7 +2,7 @@
 
 name = "super-bundle"
 client_id = "f2ba8fb09ad4efddc394c334eefa997a"
-application_url = "https://symbols-hardware-approximately-cork.trycloudflare.com"
+application_url = "https://bundled-discount-app-production.up.railway.app"
 embedded = true
 
 [access_scopes]
@@ -11,9 +11,9 @@ scopes = "write_products,write_files,write_publications,write_cart_transforms,re
 
 [auth]
 redirect_urls = [
-  "https://symbols-hardware-approximately-cork.trycloudflare.com/auth/callback",
-  "https://symbols-hardware-approximately-cork.trycloudflare.com/auth/shopify/callback",
-  "https://symbols-hardware-approximately-cork.trycloudflare.com/api/auth/callback"
+  "https://bundled-discount-app-production.up.railway.app/auth/callback",
+  "https://bundled-discount-app-production.up.railway.app/auth/shopify/callback",
+  "https://bundled-discount-app-production.up.railway.app/api/auth/callback"
 ]
 
 [webhooks]
