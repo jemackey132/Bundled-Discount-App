@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState } from "react";
 import {
   json,
+  redirect,
   unstable_composeUploadHandlers,
   unstable_createFileUploadHandler,
   unstable_createMemoryUploadHandler,
@@ -17,7 +18,7 @@ import {
   useLocation,
   useSubmit,
 } from "@remix-run/react";
-import { CancelMajor } from "@shopify/polaris-icons";
+import { XIcon } from "@shopify/polaris-icons";
 import {
   Page,
   Select,
@@ -43,16 +44,19 @@ import {
   LegacyStack,
   Thumbnail,
 } from "@shopify/polaris";
-import { FinancesMinor, SearchMinor, NoteMinor } from "@shopify/polaris-icons";
+import { MoneyIcon, SearchIcon, NoteIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import shopify from "../shopify.server";
-import { addProductMedia, getBundle } from "../bundle.server";
+import { addProductMedia, getBundle, getBundles } from "../bundle.server";
+import { checkBillingStatus } from "../billing.server";
 
 import {
   createProduct,
   addBundle,
   addComponents,
   updateBundle,
+  deleteBundle,
+  archiveProduct,
   removeAllComponents,
   updateComponents,
   updateProduct,
@@ -61,6 +65,23 @@ import {
 } from "../bundle.server";
 
 export async function action({ request }) {
+  // Handle delete before consuming the multipart body
+  const contentType = request.headers.get("content-type") || "";
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    const { admin } = await authenticate.admin(request);
+    const body = await request.formData();
+    const intent = body.get("intent");
+    if (intent === "delete") {
+      const bundleId = body.get("bundle_id");
+      const bundleGid = body.get("bundle_gid");
+      await deleteBundle(bundleId);
+      if (bundleGid) {
+        await archiveProduct(bundleGid, admin.graphql);
+      }
+      return json({ deleted: true });
+    }
+  }
+
   const uploadHandler = unstable_composeUploadHandlers(
     unstable_createFileUploadHandler({
       directory: "./public/uploads",
@@ -105,7 +126,7 @@ export async function action({ request }) {
         path: file.filepath,
         // @ts-ignore
         name: file.name,
-        handle: `https://dates-pulse-referred-imported.trycloudflare.com/${filePath}`,
+        handle: `${process.env.SHOPIFY_APP_URL}/${filePath}`,
         // @ts-ignore
         type: file.type,
       },
@@ -304,14 +325,22 @@ export async function action({ request }) {
 }
 
 export const loader = async ({ request, params }) => {
-  const { admin, session } = await authenticate.admin(request);
-  if (params.id !== "new") {
-    console.log("request id: ", params.id);
-    const bundles = await getBundle(session.shop, params.id);
-    // console.log()
-    return json(bundles);
+  const { admin, session, billing } = await authenticate.admin(request);
+
+  // Free plan gate: block creation of a 2nd bundle
+  if (params.id === "new") {
+    const { isPro } = await checkBillingStatus(billing);
+    if (!isPro) {
+      const existing = await getBundles(session.shop);
+      if (existing.length >= 1) {
+        throw redirect("/app/plan?reason=upgrade&feature=bundles");
+      }
+    }
+    return json(null);
   }
-  return json(null);
+
+  const bundles = await getBundle(session.shop, params.id);
+  return json(bundles);
 };
 
 export default function AdditionalPage() {
@@ -319,6 +348,7 @@ export default function AdditionalPage() {
   const location = useLocation();
   const bundle = useLoaderData();
   const [loader, setLoader] = useState(false);
+  const [deleteLoader, setDeleteLoader] = useState(false);
   const [bundlepopover, setBundlePopover] = useState(false);
   const [bundlestatus, setBundleStatus] = useState(false);
   const [products, setProducts] = useState([]);
@@ -441,6 +471,32 @@ export default function AdditionalPage() {
     // return null; // If all non-optional fields are non-empty, return null (no error)
   }
 
+  const handleDelete = async () => {
+    if (!window.confirm("Delete this bundle? The Shopify product will be archived.")) return;
+    setDeleteLoader(true);
+    try {
+      const body = new URLSearchParams();
+      body.append("intent", "delete");
+      body.append("bundle_id", formState.bundle_id);
+      body.append("bundle_gid", formState.bundle_gid || "");
+      const response = await fetch(`/app/create_bundle_form/${formState.bundle_id}`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+      });
+      if (response.ok) {
+        window.shopify.toast.show("Bundle deleted.");
+        window.location.href = "/app/additional";
+      } else {
+        window.shopify.toast.show("Failed to delete bundle.", { isError: true });
+      }
+    } catch (err) {
+      console.error(err);
+      window.shopify.toast.show("An error occurred.", { isError: true });
+    }
+    setDeleteLoader(false);
+  };
+
   const handleSubmit = async (event) => {
     setLoader(true);
     event.preventDefault(); // Prevent the default form submission behavior
@@ -487,13 +543,14 @@ export default function AdditionalPage() {
         );
 
         if (response.ok) {
-          // Handle success (e.g., show a success message, reset the form)
-          console.log("Bundle created successfully!");
+          console.log("Bundle saved successfully!");
           if (formState.bundle_id == 0) {
             window.shopify.toast.show("Bundle created successfully!");
           } else {
             window.shopify.toast.show("Bundle updated successfully!");
           }
+          // Navigate back to the bundle list after a brief pause so the toast is visible
+          setTimeout(() => { window.shopify.navigate("/app/additional"); }, 1200);
         } else {
           // Handle errors (e.g., show an error message)
           console.error("Error creating bundle:", response.status);
@@ -615,7 +672,7 @@ export default function AdditionalPage() {
           // @ts-ignore
           validImageTypes.includes(file.type)
             ? window.URL.createObjectURL(file)
-            : NoteMinor
+            : NoteIcon
         }
       />
       <div>
@@ -656,7 +713,7 @@ export default function AdditionalPage() {
                 type="text"
                 value={query}
                 labelHidden={true}
-                prefix={<Icon source={SearchMinor} />}
+                prefix={<Icon source={SearchIcon} />}
                 onChange={handleTextFieldChange}
                 placeholder="search"
                 autoComplete="off"
@@ -725,7 +782,7 @@ export default function AdditionalPage() {
                                 </Text>
                                 <div className="no-margin">
                                   <Link onClick={() => removeProduct(id)}>
-                                    <Icon source={CancelMajor} color="base" />
+                                    <Icon source={XIcon} color="base" />
                                   </Link>
                                 </div>
                               </div>
@@ -969,7 +1026,7 @@ export default function AdditionalPage() {
             <HorizontalStack gap="4">
               {formState.bundle_id != 0 && (
                 <div style={{ color: "#bf0711" }}>
-                  <Button monochrome outline>
+                  <Button monochrome outline loading={deleteLoader} onClick={handleDelete}>
                     Delete bundle
                   </Button>
                 </div>

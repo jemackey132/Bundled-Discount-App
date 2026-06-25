@@ -48,7 +48,97 @@ model Bundle {
   bundle_price          String?
   bundle_currency       String?
   bundle_discount_price String?
-  bundle_media          String?  @db.VarChar(200)
+  bundle_media          String?  @db.Text
+  created_at            DateTime @default(now()) @map("created_at")
+  updated_at            DateTime @updatedAt @map("updated_at")
+}
+
+model VolumeDiscount {
+  id             Int          @id @default(autoincrement())
+  shop           String
+  title          String
+  status         Boolean      @default(true)
+  product_id     String
+  product_title  String
+  product_image  String?
+  discount_gid   String?
+  views          Int          @default(0)
+  orders         Int          @default(0)
+  revenue        Float        @default(0)
+  tiers          VolumeTier[]
+  created_at     DateTime     @default(now()) @map("created_at")
+  updated_at     DateTime     @updatedAt @map("updated_at")
+}
+
+model VolumeTier {
+  id                 Int            @id @default(autoincrement())
+  volume_discount_id Int
+  volume_discount    VolumeDiscount @relation(fields: [volume_discount_id], references: [id], onDelete: Cascade)
+  min_quantity       Int
+  discount_type      String
+  discount_value     Float
+  label              String?
+  created_at         DateTime       @default(now()) @map("created_at")
+}
+
+model BundleEvent {
+  id         Int      @id @default(autoincrement())
+  bundle_id  Int
+  shop       String
+  event_type String   // "view" | "click" | "order"
+  value      Float    @default(0)
+  offer_type String?  // "bundle" | "volume_discount" | "bogo" — null = legacy bundle event
+  offer_id   Int?     // FK to the specific offer row
+  created_at DateTime @default(now()) @map("created_at")
+
+  @@index([shop, event_type, created_at])
+  @@index([bundle_id])
+  @@index([shop, offer_type, offer_id])
+}
+
+model BuyXGetY {
+  id                  Int      @id @default(autoincrement())
+  shop                String
+  title               String
+  status              Boolean  @default(true)
+  buy_product_id      String
+  buy_product_title   String
+  buy_product_image   String?
+  buy_quantity        Int      @default(1)
+  get_product_id      String
+  get_product_title   String
+  get_product_image   String?
+  get_quantity        Int      @default(1)
+  discount_value      Float    @default(100)
+  created_at          DateTime @default(now()) @map("created_at")
+  updated_at          DateTime @updatedAt @map("updated_at")
+
+  @@index([shop])
+}
+
+model AppSetting {
+  id         Int      @id @default(autoincrement())
+  shop       String
+  key        String
+  value      String   @db.Text
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  @@unique([shop, key], name: "shop_key")
+}
+
+model BundleSettings {
+  id                    Int     @id @default(autoincrement())
+  shop                  String  @unique
+  subscriptions_enabled Boolean @default(false)
+  track_inventory       Boolean @default(false)
+  track_inventory_mode  String  @default("disabled")
+  button_action         String  @default("cart")
+  variant_selector      String  @default("color_swatch")
+  product_pricing       String  @default("final_price")
+  discount_application  String  @default("when_click")
+  discount_combination  String  @default("when_click")
+  translations          String  @default("{}") @db.VarChar(2000)
   created_at            DateTime @default(now()) @map("created_at")
   updated_at            DateTime @updatedAt @map("updated_at")
 }

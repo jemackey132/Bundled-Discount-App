@@ -1,0 +1,23 @@
+query Input {
+  cart {
+    lines {
+      id
+      quantity
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          product {
+            id
+            volume_tiers: metafield(namespace: "custom", key: "volume_tiers") {
+              value
+            }
+            bogo_rules: metafield(namespace: "custom", key: "bogo_rules") {
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}

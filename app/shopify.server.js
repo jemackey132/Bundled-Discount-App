@@ -1,6 +1,7 @@
 import "@shopify/shopify-app-remix/adapters/node";
 import {
   AppDistribution,
+  BillingInterval,
   DeliveryMethod,
   shopifyApp,
   LATEST_API_VERSION,
@@ -20,12 +21,24 @@ const shopify = shopifyApp({
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
   restResources,
+  billing: {
+    "Super Bundle Pro": {
+      amount: 9.99,
+      currencyCode: "USD",
+      interval: BillingInterval.Every30Days,
+      trialDays: 14,
+    },
+  },
   webhooks: {
     APP_UNINSTALLED: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },
     ORDERS_CREATE: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks",
+    },
+    APP_SUBSCRIPTIONS_UPDATE: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks",
     },

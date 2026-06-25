@@ -1,131 +1,92 @@
-import { useEffect } from "react";
 import { json } from "@remix-run/node";
-import {
-  useActionData,
-  useLoaderData,
-  useNavigation,
-  useSubmit,
-} from "@remix-run/react";
+import { useLoaderData, useNavigate } from "@remix-run/react";
+import { useEffect } from "react";
 import welcome from "../../public/bandana-logo.svg";
 import {
   Page,
-  Layout,
   Text,
   VerticalStack,
   Card,
   Button,
   HorizontalStack,
-  HorizontalGrid,
   Box,
-  Divider,
-  List,
-  Link,
-  Icon,
-  EmptyState,
 } from "@shopify/polaris";
 
 import { authenticate } from "../shopify.server";
-
-
+import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
+  const shop = session.shop;
 
-  return json({ shop: session.shop.replace(".myshopify.com", "") });
+  const setting = await prisma.appSetting.findUnique({
+    where: { shop_key: { shop, key: "hasSeenOnboarding" } },
+  });
+
+  // First install — mark as seen
+  if (!setting) {
+    await prisma.appSetting.upsert({
+      where: { shop_key: { shop, key: "hasSeenOnboarding" } },
+      update: { value: "true" },
+      create: { shop, key: "hasSeenOnboarding", value: "true" },
+    });
+  }
+
+  return json({ hasSeenOnboarding: setting?.value === "true" });
 };
 
-export async function action({ request }) {
-  const { admin } = await authenticate.admin(request);
-
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
-  const response = await admin.graphql(
-    `#graphql
-      mutation populateProduct($input: ProductInput!) {
-        productCreate(input: $input) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
-          }
-        }
-      }`,
-    {
-      variables: {
-        input: {
-          title: `${color} Snowboard`,
-          variants: [{ price: Math.random() * 100 }],
-        },
-      },
-    }
-  );
-
-  const responseJson = await response.json();
-
-  return json({
-    product: responseJson.data.productCreate.product,
-  });
-}
-
 export default function Index() {
-  const nav = useNavigation();
-  const { shop } = useLoaderData();
-  const actionData = useActionData();
-  const submit = useSubmit();
-
-  const isLoading =
-    ["loading", "submitting"].includes(nav.state) && nav.formMethod === "POST";
-
-  const productId = actionData?.product?.id.replace(
-    "gid://shopify/Product/",
-    ""
-  );
+  const { hasSeenOnboarding } = useLoaderData();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (productId) {
-      shopify.toast.show("Product created");
+    if (hasSeenOnboarding) {
+      navigate("/app/additional");
     }
-  }, [productId]);
+  }, [hasSeenOnboarding]);
 
-  const generateProduct = () => submit({}, { replace: true, method: "POST" });
+  if (hasSeenOnboarding) return null;
 
   return (
     <Page>
       <div className="welcome-card">
         <Card>
-          <EmptyState
-            action={{ content: "Begin", url:"/app/additional" }}
-            image={welcome}
-          >
-          <p className="welcome-heading">Welcome!</p>
-          <p className="welcome-subheading">How it works</p>
-          <HorizontalGrid gap="8" columns={3}>
-            <div className="steps-div">
-              <Text variant="headingSm" as="p">Step 1</Text>
-              <p className="subtext">preferences</p>
+          <VerticalStack gap="8" inlineAlign="center">
+            <img src={welcome} width="80" alt="Super Bundle logo" />
+            <VerticalStack gap="3" inlineAlign="center">
+              <Text variant="headingXl" as="h1" alignment="center">
+                Welcome to Super Bundle
+              </Text>
+              <Text variant="bodyLg" as="p" alignment="center" color="subdued">
+                Create product bundles with automatic discounts — powered by Shopify's native infrastructure for zero lag and full theme compatibility.
+              </Text>
+            </VerticalStack>
+            <HorizontalStack gap="6" wrap={false}>
+              <Box padding="4" style={{ textAlign: "center", maxWidth: "180px" }}>
+                <VerticalStack gap="1" inlineAlign="center">
+                  <Text variant="headingSm" as="p">⚡ Native discounts</Text>
+                  <Text variant="bodySm" as="p" color="subdued">Applied at checkout — no scripts, no lag</Text>
+                </VerticalStack>
+              </Box>
+              <Box padding="4" style={{ textAlign: "center", maxWidth: "180px" }}>
+                <VerticalStack gap="1" inlineAlign="center">
+                  <Text variant="headingSm" as="p">📦 Fixed bundles</Text>
+                  <Text variant="bodySm" as="p" color="subdued">Group products and reward customers who buy them together</Text>
+                </VerticalStack>
+              </Box>
+              <Box padding="4" style={{ textAlign: "center", maxWidth: "180px" }}>
+                <VerticalStack gap="1" inlineAlign="center">
+                  <Text variant="headingSm" as="p">📊 Built-in analytics</Text>
+                  <Text variant="bodySm" as="p" color="subdued">Track views, clicks, and revenue per bundle</Text>
+                </VerticalStack>
+              </Box>
+            </HorizontalStack>
+            <div className="btn-primary-black">
+              <Button size="large" url="/app/additional">
+                Get started
+              </Button>
             </div>
-            <div className="steps-div">
-              <Text variant="headingSm" as="p">Step 2</Text>
-              <p className="subtext">Brand info</p>
-            </div>
-            <div className="steps-div">
-              <Text variant="headingSm" as="p">Step 3</Text>
-              <p className="subtext">Install App</p>
-            </div>
-          </HorizontalGrid>
-          </EmptyState>
+          </VerticalStack>
         </Card>
       </div>
     </Page>

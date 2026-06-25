@@ -1,0 +1,190 @@
+{% assign volume_tiers_raw = product.metafields.custom.volume_tiers.value %}
+{% if volume_tiers_raw != blank %}
+
+<div id="sb-vd-badge-{{ product.id }}" class="sb-vd-badge" style="display:none">
+  <div class="sb-vd-header">
+    <span class="sb-vd-icon">🏷️</span>
+    <span class="sb-vd-title">{{ block.settings.title }}</span>
+  </div>
+  <div class="sb-vd-tiers" id="sb-vd-tiers-{{ product.id }}"></div>
+</div>
+
+<style>
+  .sb-vd-badge {
+    border: 1px solid {{ block.settings.border_color }};
+    border-radius: {{ block.settings.border_radius }}px;
+    padding: 14px 16px;
+    margin: 12px 0;
+    background: {{ block.settings.background_color }};
+    font-family: inherit;
+  }
+
+  .sb-vd-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .sb-vd-icon {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .sb-vd-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: {{ block.settings.title_color }};
+    letter-spacing: 0.01em;
+  }
+
+  .sb-vd-tiers {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .sb-vd-tier {
+    flex: 1;
+    min-width: 80px;
+    background: {{ block.settings.tier_bg_color }};
+    border: 1px solid {{ block.settings.tier_border_color }};
+    border-radius: 6px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .sb-vd-tier-qty {
+    font-size: 12px;
+    color: {{ block.settings.tier_qty_color }};
+    margin-bottom: 4px;
+  }
+
+  .sb-vd-tier-discount {
+    font-size: 16px;
+    font-weight: 700;
+    color: {{ block.settings.accent_color }};
+  }
+
+  .sb-vd-tier-label {
+    font-size: 11px;
+    color: {{ block.settings.tier_qty_color }};
+    margin-top: 2px;
+    font-style: italic;
+  }
+</style>
+
+<script>
+(function () {
+  var raw = {{ volume_tiers_raw | json }};
+  var tiers;
+  try { tiers = JSON.parse(raw); } catch (e) { return; }
+  if (!Array.isArray(tiers) || tiers.length === 0) return;
+
+  tiers.sort(function (a, b) { return a.min_quantity - b.min_quantity; });
+
+  var container = document.getElementById('sb-vd-tiers-{{ product.id }}');
+  if (!container) return;
+
+  tiers.forEach(function (tier) {
+    var isPercentage = tier.discount_type === 'percentage';
+    var discountText = isPercentage
+      ? tier.discount_value + '% off'
+      : '$' + parseFloat(tier.discount_value).toFixed(2) + ' off';
+
+    var card = document.createElement('div');
+    card.className = 'sb-vd-tier';
+
+    var qty = document.createElement('div');
+    qty.className = 'sb-vd-tier-qty';
+    qty.textContent = 'Buy ' + tier.min_quantity + '+';
+
+    var discount = document.createElement('div');
+    discount.className = 'sb-vd-tier-discount';
+    discount.textContent = discountText;
+
+    card.appendChild(qty);
+    card.appendChild(discount);
+
+    if (tier.label) {
+      var label = document.createElement('div');
+      label.className = 'sb-vd-tier-label';
+      label.textContent = tier.label;
+      card.appendChild(label);
+    }
+
+    container.appendChild(card);
+  });
+
+  document.getElementById('sb-vd-badge-{{ product.id }}').style.display = 'block';
+})();
+</script>
+
+{% endif %}
+
+{% schema %}
+{
+  "name": "Volume Discount Badge",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Badge title",
+      "default": "Buy more, save more"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#f6f6f7"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border color",
+      "default": "#e1e3e5"
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "label": "Corner radius",
+      "min": 0,
+      "max": 20,
+      "step": 2,
+      "default": 8,
+      "unit": "px"
+    },
+    {
+      "type": "color",
+      "id": "title_color",
+      "label": "Title color",
+      "default": "#202223"
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Discount color",
+      "default": "#008060"
+    },
+    {
+      "type": "color",
+      "id": "tier_bg_color",
+      "label": "Tier card background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "tier_border_color",
+      "label": "Tier card border",
+      "default": "#d1d5db"
+    },
+    {
+      "type": "color",
+      "id": "tier_qty_color",
+      "label": "Quantity label color",
+      "default": "#6d7175"
+    }
+  ]
+}
+{% endschema %}

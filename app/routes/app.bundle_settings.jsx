@@ -1,14 +1,8 @@
-import { useEffect, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { json } from "@remix-run/node";
+import { useActionData, useLoaderData, useNavigation, useSubmit } from "@remix-run/react";
 import {
-  useActionData,
-  useLoaderData,
-  useNavigation,
-  useSubmit,
-} from "@remix-run/react";
-import welcome from "../../public/finances_minor.svg";
-import {
-    Page,
+  Page,
   Card,
   Text,
   VerticalStack,
@@ -17,66 +11,88 @@ import {
   Divider,
   RadioButton,
   HorizontalStack,
-  Link
+  Button,
+  Link,
 } from "@shopify/polaris";
-import { FinancesMinor, SearchMinor } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import { getSettings, saveSettings } from "../bundle.server";
 
-export default function AdditionalPage() {
-    const [subchecked, setSubChecked] = useState(false);
-  const handleSubChange = useCallback(
-    (newChecked) => setSubChecked(newChecked),
-    []
-  );
+export const loader = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const settings = await getSettings(session.shop);
+  return json(settings);
+};
 
-  const [tivalue, setTIValue] = useState("disabled");
+export async function action({ request }) {
+  const { session } = await authenticate.admin(request);
+  const formData = await request.formData();
 
-  const handleTrackInventoryChange = useCallback(
-    (_, newValue) => setTIValue(newValue),
-    []
-  );
+  const data = {
+    subscriptions_enabled: formData.get("subscriptions_enabled") === "true",
+    track_inventory: formData.get("track_inventory") === "true",
+    track_inventory_mode: formData.get("track_inventory_mode") || "disabled",
+    button_action: formData.get("button_action") || "cart",
+    variant_selector: formData.get("variant_selector") || "color_swatch",
+    product_pricing: formData.get("product_pricing") || "final_price",
+    discount_application: formData.get("discount_application") || "when_click",
+    discount_combination: formData.get("discount_combination") || "when_click",
+  };
 
-  const [bavalue, setBAValue] = useState("cart");
+  await saveSettings(session.shop, data);
+  return json({ success: true });
+}
 
-  const handleBtnActionChange = useCallback(
-    (_, newValue) => setBAValue(newValue),
-    []
-  );
+export default function BundleSettingsPage() {
+  const settings = useLoaderData();
+  const actionData = useActionData();
+  const navigation = useNavigation();
+  const submit = useSubmit();
 
-  const [variantselector, setVariantSelector] = useState("color_swatch");
+  const isSaving = navigation.state === "submitting";
 
-  const handleVariantSelector = useCallback(
-    (_, newValue) => setVariantSelector(newValue),
-    []
-  );
+  const [subchecked, setSubChecked] = useState(settings.subscriptions_enabled);
+  const [trackInventory, setTrackInventory] = useState(settings.track_inventory);
+  const [tivalue, setTIValue] = useState(settings.track_inventory_mode);
+  const [bavalue, setBAValue] = useState(settings.button_action);
+  const [variantselector, setVariantSelector] = useState(settings.variant_selector);
+  const [productpricing, setProductPricing] = useState(settings.product_pricing);
+  const [dasvalue, setDASValue] = useState(settings.discount_application);
+  const [dcvalue, setDCValue] = useState(settings.discount_combination);
 
-  const [productpricing, setProductPricing] = useState("final_price");
+  const handleSave = () => {
+    const formData = new FormData();
+    formData.append("subscriptions_enabled", String(subchecked));
+    formData.append("track_inventory", String(trackInventory));
+    formData.append("track_inventory_mode", tivalue);
+    formData.append("button_action", bavalue);
+    formData.append("variant_selector", variantselector);
+    formData.append("product_pricing", productpricing);
+    formData.append("discount_application", dasvalue);
+    formData.append("discount_combination", dcvalue);
+    submit(formData, { method: "post" });
+  };
 
-  const handleProductPricing = useCallback(
-    (_, newValue) => setProductPricing(newValue),
-    []
-  );
-
-  const [dasvalue, setDASValue] = useState("when_click");
-
-  const handleDAS = useCallback(
-    (_, newValue) => setDASValue(newValue),
-    []
-  );
-
-    return (
-        <Page
-      backAction={{ content: "Settings", url: "/app/additional" }}
+  return (
+    <Page
+      backAction={{ content: "Bundles", url: "/app/additional" }}
       title="Bundle settings"
+      primaryAction={
+        <Button primary loading={isSaving} onClick={handleSave}>
+          Save settings
+        </Button>
+      }
     >
+      {actionData?.success && (
+        <div style={{ marginBottom: "16px" }}>
+          <Banner status="success" title="Settings saved." onDismiss={() => {}} />
+        </div>
+      )}
       <div className="bundle-setting-main">
         <VerticalStack gap="5">
           <div className="bundle-setting-card">
             <VerticalStack gap="3">
               <VerticalStack gap="2">
-                <Text variant="headingMd" as="h2">
-                  Subscription
-                </Text>
+                <Text variant="headingMd" as="h2">Subscription</Text>
                 <Text variant="bodyMd" as="p">
                   Install any subscription app and start selling your bundles
                   weekly, monthly, yearly, etc.
@@ -87,12 +103,11 @@ export default function AdditionalPage() {
                   <Checkbox
                     label="Enable subscriptions"
                     checked={subchecked}
-                    onChange={handleSubChange}
+                    onChange={(val) => setSubChecked(val)}
                   />
                   <Banner title="Install subscription app" status="info">
                     <Text variant="bodyMd" as="p">
-                      Install any subscription app on your store to access this
-                      feature.
+                      Install any subscription app on your store to access this feature.
                     </Text>
                   </Banner>
                 </VerticalStack>
@@ -103,38 +118,34 @@ export default function AdditionalPage() {
           <div className="bundle-setting-card">
             <VerticalStack gap="3">
               <VerticalStack gap="2">
-                <Text variant="headingMd" as="h2">
-                  Track inventory
-                </Text>
+                <Text variant="headingMd" as="h2">Track inventory</Text>
                 <Text variant="bodyMd" as="p">
-                  Track the inventory to specify how your bundles appear when
-                  one of the bundled products is sold out. Don't track the
-                  inventory to display the bundle regardless of the availability
-                  of the product.
+                  Track the inventory to specify how your bundles appear when one of the
+                  bundled products is sold out.
                 </Text>
               </VerticalStack>
               <Card>
                 <VerticalStack gap="4">
                   <Checkbox
                     label="Track inventory"
-                    checked={subchecked}
-                    onChange={handleSubChange}
+                    checked={trackInventory}
+                    onChange={(val) => setTrackInventory(val)}
                   />
                   <div style={{ marginLeft: "20px" }}>
                     <VerticalStack gap="2">
                       <RadioButton
                         label="Don't display the unavailable bundles"
                         checked={tivalue === "disabled"}
-                        id="disabled"
-                        name="accounts"
-                        onChange={handleTrackInventoryChange}
+                        id="ti_disabled"
+                        name="track_inventory_mode"
+                        onChange={() => setTIValue("disabled")}
                       />
                       <RadioButton
                         label="Show the sold-out badge for the unavailable bundles"
-                        id="optional"
-                        name="accounts"
+                        id="ti_optional"
+                        name="track_inventory_mode"
                         checked={tivalue === "optional"}
-                        onChange={handleTrackInventoryChange}
+                        onChange={() => setTIValue("optional")}
                       />
                     </VerticalStack>
                   </div>
@@ -146,12 +157,9 @@ export default function AdditionalPage() {
           <div className="bundle-setting-card">
             <VerticalStack gap="3">
               <VerticalStack gap="2">
-                <Text variant="headingMd" as="h2">
-                  Button action
-                </Text>
+                <Text variant="headingMd" as="h2">Button action</Text>
                 <Text variant="bodyMd" as="p">
-                  Manage what page the customer is taken to after clicking the
-                  bundle button.
+                  Manage what page the customer is taken to after clicking the bundle button.
                 </Text>
               </VerticalStack>
               <Card>
@@ -159,25 +167,24 @@ export default function AdditionalPage() {
                   <RadioButton
                     label="Cart"
                     checked={bavalue === "cart"}
-                    id="cart"
-                    name="btn_action"
-                    onChange={handleBtnActionChange}
+                    id="ba_cart"
+                    name="button_action"
+                    onChange={() => setBAValue("cart")}
                   />
                   <RadioButton
                     label="Checkout"
-                    id="checkout"
-                    name="btn_action"
+                    id="ba_checkout"
+                    name="button_action"
                     checked={bavalue === "checkout"}
-                    onChange={handleBtnActionChange}
+                    onChange={() => setBAValue("checkout")}
                   />
                   <RadioButton
-                    label="Cart drawer (mini cart)
-                    Please contact Support in order to activate this option."
-                    id="cart_drawer"
-                    name="btn_action"
+                    label="Cart drawer (mini cart) — contact Support to activate."
+                    id="ba_cart_drawer"
+                    name="button_action"
                     disabled={true}
                     checked={bavalue === "cart_drawer"}
-                    onChange={handleBtnActionChange}
+                    onChange={() => setBAValue("cart_drawer")}
                   />
                 </VerticalStack>
               </Card>
@@ -187,12 +194,9 @@ export default function AdditionalPage() {
           <div className="bundle-setting-card">
             <VerticalStack gap="3">
               <VerticalStack gap="2">
-                <Text variant="headingMd" as="h2">
-                  Variant selector type
-                </Text>
+                <Text variant="headingMd" as="h2">Variant selector type</Text>
                 <Text variant="bodyMd" as="p">
-                  Specify that the customer should use the dropdown or color
-                  swatch to select variants in the bundle
+                  Specify whether customers use a dropdown or color swatch to select variants.
                 </Text>
               </VerticalStack>
               <Card>
@@ -200,16 +204,16 @@ export default function AdditionalPage() {
                   <RadioButton
                     label="Dropdown"
                     checked={variantselector === "dropdown"}
-                    id="dropdown"
+                    id="vs_dropdown"
                     name="variant_selector"
-                    onChange={handleVariantSelector}
+                    onChange={() => setVariantSelector("dropdown")}
                   />
                   <RadioButton
                     label="Color swatch"
-                    id="color_swatch"
+                    id="vs_color_swatch"
                     name="variant_selector"
                     checked={variantselector === "color_swatch"}
-                    onChange={handleVariantSelector}
+                    onChange={() => setVariantSelector("color_swatch")}
                   />
                 </VerticalStack>
               </Card>
@@ -219,12 +223,9 @@ export default function AdditionalPage() {
           <div className="bundle-setting-card">
             <VerticalStack gap="3">
               <VerticalStack gap="2">
-                <Text variant="headingMd" as="h2">
-                  Product pricing
-                </Text>
+                <Text variant="headingMd" as="h2">Product pricing</Text>
                 <Text variant="bodySm" as="p">
-                  Price of the products in the bundle can be the Final price or
-                  their compare at price (if there was).
+                  Choose whether bundle items display their final price or compare-at price.
                 </Text>
               </VerticalStack>
               <Card>
@@ -232,16 +233,16 @@ export default function AdditionalPage() {
                   <RadioButton
                     label="Final price"
                     checked={productpricing === "final_price"}
-                    id="final_price"
+                    id="pp_final_price"
                     name="product_pricing"
-                    onChange={handleProductPricing}
+                    onChange={() => setProductPricing("final_price")}
                   />
                   <RadioButton
                     label="Compare at price"
-                    id="compare_at_price"
+                    id="pp_compare_at_price"
                     name="product_pricing"
                     checked={productpricing === "compare_at_price"}
-                    onChange={handleProductPricing}
+                    onChange={() => setProductPricing("compare_at_price")}
                   />
                 </VerticalStack>
               </Card>
@@ -251,108 +252,78 @@ export default function AdditionalPage() {
           <div className="bundle-setting-card">
             <VerticalStack gap="3">
               <VerticalStack gap="2">
-                <Text variant="headingMd" as="h2">
-                  Discount
-                </Text>
+                <Text variant="headingMd" as="h2">Discount</Text>
                 <Text variant="bodySm" as="p">
-                  Manage discount settings in different sections such as
-                  discount application, discount combination, discount display
-                  and discount codes.
+                  Manage discount application and combination settings.
                 </Text>
               </VerticalStack>
               <Card>
                 <VerticalStack gap="4">
-                  <Text variant="headingMd" as="h2">
-                    Discount application settings
-                  </Text>
+                  <Text variant="headingMd" as="h2">Discount application settings</Text>
                   <div style={{ marginLeft: "18px" }}>
                     <VerticalStack gap="2">
                       <RadioButton
                         label="Apply the discount only if the bundle is clicked by the customer"
                         checked={dasvalue === "when_click"}
-                        id="when_click"
-                        name="discount_app_setting"
-                        onChange={handleDAS}
+                        id="das_when_click"
+                        name="discount_application"
+                        onChange={() => setDASValue("when_click")}
                       />
                       <RadioButton
                         label="Always apply the discount"
-                        id="always"
-                        name="discount_app_setting"
+                        id="das_always"
+                        name="discount_application"
                         disabled
                         checked={dasvalue === "always"}
-                        onChange={handleDAS}
+                        onChange={() => setDASValue("always")}
                       />
                     </VerticalStack>
                   </div>
-                  <Banner
-                    status="info"
-                  >
-                    <Text variant="bodyMd" as="p">This option is only available for the Fixed-cost plan.</Text>
+                  <Banner status="info">
+                    <Text variant="bodyMd" as="p">
+                      "Always apply" is only available on the Fixed-cost plan.
+                    </Text>
                   </Banner>
                 </VerticalStack>
               </Card>
             </VerticalStack>
           </div>
-          <div style={{ marginTop: "32px", marginBottom:"32px"}}>
-          <div className="bundle-setting-card">
-            <VerticalStack gap="3">
-              <Card>
-                <VerticalStack gap="4">
-                  <Text variant="headingMd" as="h2">
-                  Discount combination
-                  </Text>
-                  <div style={{ marginLeft: "18px" }}>
-                    <VerticalStack gap="2">
-                      <RadioButton
-                        label="Apply the discount only if the bundle is clicked by the customer"
-                        checked={dasvalue === "when_click"}
-                        id="when_click"
-                        name="discount_combination"
-                        onChange={handleDAS}
-                      />
-                      <RadioButton
-                        label="Do not allow bundles' discount codes to be combined with other discount codes"
-                        id="always"
-                        name="discount_combination"
-                        checked={dasvalue === "always"}
-                        onChange={handleDAS}
-                      />
-                    </VerticalStack>
-                  </div>
-                </VerticalStack>
-              </Card>
-            </VerticalStack>
+          <div style={{ marginTop: "32px", marginBottom: "32px" }}>
+            <div className="bundle-setting-card">
+              <VerticalStack gap="3">
+                <Card>
+                  <VerticalStack gap="4">
+                    <Text variant="headingMd" as="h2">Discount combination</Text>
+                    <div style={{ marginLeft: "18px" }}>
+                      <VerticalStack gap="2">
+                        <RadioButton
+                          label="Allow bundle discounts to combine with other discount codes"
+                          checked={dcvalue === "when_click"}
+                          id="dc_when_click"
+                          name="discount_combination"
+                          onChange={() => setDCValue("when_click")}
+                        />
+                        <RadioButton
+                          label="Do not allow bundle discount codes to combine with other codes"
+                          id="dc_always"
+                          name="discount_combination"
+                          checked={dcvalue === "always"}
+                          onChange={() => setDCValue("always")}
+                        />
+                      </VerticalStack>
+                    </div>
+                  </VerticalStack>
+                </Card>
+              </VerticalStack>
+            </div>
           </div>
+          <div style={{ paddingBottom: "32px" }}>
+            <Button primary loading={isSaving} onClick={handleSave}>
+              Save settings
+            </Button>
           </div>
-          <div className="bundle-setting-card">
-            <VerticalStack gap="3">
-              <Card>
-                <VerticalStack gap="4">
-                  <Text variant="headingMd" as="h2">
-                  Discount label
-                  </Text>
-                  <div style={{ marginLeft: "18px", marginBottom:"15px" }}>
-                    <VerticalStack gap="2">
-                      <RadioButton
-                        label="This label appears on the discounted bundle items in your cart."
-                        checked={dasvalue === "when_click"}
-                        id="when_click"
-                        name="discount_combination"
-                        onChange={handleDAS}
-                      />
-                    </VerticalStack>
-                  </div>
-                  <HorizontalStack align="space-between">
-                  <Text variant="headingSm" as="h3">Label: Bundle</Text>
-                  <Link>Edit lable</Link>
-                  </HorizontalStack>
-                </VerticalStack>
-              </Card>
-            </VerticalStack>
-          </div>
-          <Divider />
         </VerticalStack>
       </div>
     </Page>
-      );
+  );
 }

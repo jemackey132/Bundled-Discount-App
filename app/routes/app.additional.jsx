@@ -1,16 +1,35 @@
 // @ts-nocheck
-import { useEffect, useCallback, useState, useRef } from "react";
+import { useEffect, useCallback, useState, useRef, useMemo } from "react";
+import { ClientOnly } from "remix-utils";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 import { useNavigate } from "react-router-dom";
 import { redirect } from "react-router-dom";
 // import { redirect } from "@remix-run/node"; // or cloudflare/deno
 import { json } from "@remix-run/node";
-import { EditMajor } from "@shopify/polaris-icons";
+import {
+  EditIcon, DeleteIcon, SearchIcon,
+  ViewIcon, CursorIcon, OrderIcon, CashDollarIcon,
+  SettingsIcon, LanguageTranslateIcon, QuestionCircleIcon,
+  CreditCardIcon, RefreshIcon,
+} from "@shopify/polaris-icons";
 import {
   useActionData,
   useLoaderData,
   useFetcher,
   useNavigation,
   useSubmit,
+  useSearchParams,
 } from "@remix-run/react";
 import welcome from "../../public/bandana-logo.svg";
 import {
@@ -24,7 +43,6 @@ import {
   Frame,
   Button,
   Banner,
-  ButtonGroup,
   HorizontalStack,
   HorizontalGrid,
   Box,
@@ -44,22 +62,85 @@ import {
   Link,
   Divider,
 } from "@shopify/polaris";
-import { SearchMinor, SortMinor } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getBundles } from "../bundle.server";
+import { checkBillingStatus } from "../billing.server";
+import { getVolumeDiscounts } from "../volume_discount.server";
+import { getBuyXGetYOffers } from "../bogo.server";
 
 export const loader = async ({ request }) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { admin, session, billing } = await authenticate.admin(request);
 
-  const bundles = await getBundles(session.shop);
-  // console.log()
-  return json(bundles);
+  const [bundles, discounts, bogoOffers] = await Promise.all([
+    getBundles(session.shop),
+    getVolumeDiscounts(session.shop),
+    getBuyXGetYOffers(session.shop),
+  ]);
+  const { isPro } = await checkBillingStatus(billing).catch(() => ({ isPro: false }));
+
+  // Time-series: last 30 days of BundleEvents grouped by date
+  const since = new Date();
+  since.setDate(since.getDate() - 29);
+  since.setHours(0, 0, 0, 0);
+
+  const rawEvents = await prisma.bundleEvent.findMany({
+    where: { shop: session.shop, created_at: { gte: since } },
+    select: { event_type: true, value: true, created_at: true, offer_type: true },
+    orderBy: { created_at: "asc" },
+  });
+
+  // Build a map of date → { orders, sales, views, clicks }
+  const dateMap = {};
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(since);
+    d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    dateMap[key] = { date: key, orders: 0, sales: 0, views: 0, clicks: 0 };
+  }
+  // Offer-type breakdown totals
+  const offerTypeTotals = { bundle: { orders: 0, sales: 0 }, volume_discount: { orders: 0, sales: 0 }, bogo: { orders: 0, sales: 0 } };
+  for (const e of rawEvents) {
+    const key = e.created_at.toISOString().slice(0, 10);
+    if (!dateMap[key]) continue;
+    if (e.event_type === "order") {
+      dateMap[key].orders += 1;
+      dateMap[key].sales += e.value;
+      const ot = e.offer_type || "bundle";
+      if (offerTypeTotals[ot]) {
+        offerTypeTotals[ot].orders += 1;
+        offerTypeTotals[ot].sales += e.value;
+      }
+    }
+    else if (e.event_type === "view") dateMap[key].views += 1;
+    else if (e.event_type === "click") dateMap[key].clicks += 1;
+  }
+  // Round sales in breakdown
+  for (const ot of Object.keys(offerTypeTotals)) {
+    offerTypeTotals[ot].sales = parseFloat(offerTypeTotals[ot].sales.toFixed(2));
+  }
+  const timeSeries = Object.values(dateMap).map((d) => ({
+    ...d,
+    sales: parseFloat(d.sales.toFixed(2)),
+    date: d.date.slice(5), // MM-DD for display
+  }));
+
+  return json({ bundles, discounts, bogoOffers, timeSeries, offerTypeTotals, shop: session.shop, isPro });
 };
 
 export default function AdditionalPage() {
   const cnav = useNavigate();
   const fetcher = useFetcher();
+  const [searchParams] = useSearchParams();
+
+  // Show toast when returning from form with ?saved=1
+  useEffect(() => {
+    if (searchParams.get("saved") === "1") {
+      window.shopify?.toast?.show("Offer saved.");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [viewCount, setViewCount] = useState(0);
   const [clickCount, setClickCount] = useState(0); 
   const [orderCount, setOrderCount] = useState(0); 
@@ -72,9 +153,16 @@ export default function AdditionalPage() {
   const [selected, setSelected] = useState(0);
   const [tselected, setTSelected] = useState(0);
 
-  const bundleData = useLoaderData();
+  const loaderData = useLoaderData();
+  const shop = loaderData.shop;
+  const bundleData = loaderData.bundles;
+  const discountData = loaderData.discounts ?? [];
+  const bogoData = loaderData.bogoOffers ?? [];
+  const timeSeries = loaderData.timeSeries ?? [];
+  const offerTypeTotals = loaderData.offerTypeTotals ?? { bundle: { orders: 0, sales: 0 }, volume_discount: { orders: 0, sales: 0 }, bogo: { orders: 0, sales: 0 } };
+  const isPro = loaderData.isPro;
 
-  const data = fetcher.data || bundleData;
+  const data = fetcher.data?.bundles || bundleData;
 
   // const revalidate = () => {
   //   if (document.visibilityState === "visible") {
@@ -91,11 +179,29 @@ export default function AdditionalPage() {
   console.log('(88)Bundle Data: ', bundleData);
 
   const [bundlepopup, setBundlePopup] = useState(false);
+  const [upgradeModal, setUpgradeModal] = useState({ open: false, feature: "", reason: "" });
 
   const toggleBundlePopup = useCallback(
     () => setBundlePopup((bundlepopup) => !bundlepopup),
     []
   );
+
+  // Gate: show upgrade modal if free plan + already has a bundle; otherwise open normal popup
+  const handleCreateBundle = useCallback(() => {
+    if (!isPro && data.length >= 1) {
+      setUpgradeModal({
+        open: true,
+        feature: "bundles",
+        reason: "The Free plan is limited to 1 bundle. Upgrade to Pro for unlimited bundles.",
+      });
+    } else {
+      toggleBundlePopup();
+    }
+  }, [isPro, data, toggleBundlePopup]);
+
+  const handleComingSoon = useCallback(() => {
+    window.shopify.toast.show("Coming soon — we're building this next!", { duration: 3000 });
+  }, []);
 
   const handleTabChange = useCallback(
     (selectedTabIndex) => {
@@ -121,98 +227,26 @@ export default function AdditionalPage() {
     []
   );
 
-  const [active, setActive] = useState({
-    active_one: false,
-    active_two: false,
-    active_three: false,
-  });
 
-  const toggleActive = useCallback((key) => {
-    console.log(key);
-    setActive((active) => ({
-      ...active,
-      [key]: !active[key],
-    }));
-    console.log(active);
+
+  const [searchValue, setSearchValue] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [typePopoverOpen, setTypePopoverOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  const typeLabels = { all: "Type", bundle: "Fixed Bundle", discount: "Volume Discount", bogo: "Buy X Get Y" };
+
+  const handleSearchChange = useCallback((value) => {
+    setSearchValue(value);
+    setCurrentPage(1);
   }, []);
 
-  const [activeAnalyticsButtonIndex, setActiveAnalyticsButtonIndex] =
-    useState(0);
-  const [filterSelected, setFilterSelected] = useState("begin_to_now");
-
-  const handleFilterSelectChange = useCallback(
-    (value) => setFilterSelected(value),
-    []
-  );
-  const handleAnalyticsButtonClick = useCallback(
-    (index) => {
-      if (activeAnalyticsButtonIndex === index) return;
-      setActiveAnalyticsButtonIndex(index);
-    },
-    [activeAnalyticsButtonIndex]
-  );
-
-  const analyticsfilteroptions = [
-    {
-      label: "from beginning to now",
-      value: "begin_to_now",
-      prefix: <Icon source={SortMinor} />,
-    },
-    {
-      label: "from beginning to last month",
-      value: "begin_to_last_month",
-      prefix: <Icon source={SortMinor} />,
-    },
-  ];
-
-  const analyticstablerows = [
-    [
-      <div className="avatar-row">
-        <Avatar customer name="Farrah" />
-        <Avatar customer name="Farrah" />
-      </div>,
-      "bundle #1",
-      <Badge status="success">Active</Badge>,
-      "$ 0",
-      "0",
-      "100",
-      "10",
-    ],
-    [
-      <div className="avatar-row">
-        <Avatar customer name="Farrah" />
-        <Avatar customer name="Farrah" />
-      </div>,
-      "bundle #2",
-      <Badge>Draft</Badge>,
-      "$ 0",
-      "0",
-      "0",
-      "0",
-    ],
-  ];
-
-  const [textFieldValue, setTextFieldValue] = useState("2.00");
-
-  const handleTextFieldChange = useCallback(
-    (value) => setTextFieldValue(value),
-    []
-  );
-  const activatorone = (
-    <Button onClick={() => toggleActive("active_one")} disclosure>
-      Type
-    </Button>
-  );
-  const activatortwo = (
-    <Button onClick={() => toggleActive("active_two")} disclosure>
-      Enable displays
-    </Button>
-  );
-  const activatorthree = (
-    <Button onClick={() => toggleActive("active_three")} disclosure>
-      Bundle as a products
-    </Button>
-  );
+  const handleTypeFilter = useCallback((value) => {
+    setTypeFilter(value);
+    setTypePopoverOpen(false);
+    setCurrentPage(1);
+  }, []);
   const tabletabs = [
     {
       id: "all-customers-1",
@@ -232,228 +266,7 @@ export default function AdditionalPage() {
     },
   ];
 
-  const [orders, setOrders] = useState([
-    {
-      id: "1020",
-      bundle: (
-        <div className="avatar-row">
-          <Avatar customer name="Farrah" />
-          <Avatar customer name="Farrah" />
-        </div>
-      ),
-      name: "bundle #1",
-      status: (
-        <div className="custom-badge">
-          <Badge status="success">active</Badge>
-        </div>
-      ),
-      type: "Bundle",
-      discount: "10% off",
-      fulfillmentStatus: (
-        <div className="custom-badge">
-          <Badge progress="complete">Disabled</Badge>
-        </div>
-      ),
-    },
-    {
-      id: "1021",
-      bundle: (
-        <div className="avatar-row">
-          <Avatar customer name="Farrah" />
-          <Avatar customer name="Farrah" />
-        </div>
-      ),
-      name: "bundle #1",
-      status: (
-        <div className="custom-badge">
-          <Badge status="success">active</Badge>
-        </div>
-      ),
-      type: "Bundle",
-      discount: "10% off",
-      fulfillmentStatus: (
-        <div className="custom-badge">
-          <Badge progress="complete">Disabled</Badge>
-        </div>
-      ),
-    },
-    {
-      id: "1022",
-      bundle: (
-        <div className="avatar-row">
-          <Avatar customer name="Farrah" />
-          <Avatar customer name="Farrah" />
-        </div>
-      ),
-      name: "bundle #1",
-      status: (
-        <div className="custom-badge">
-          <Badge status="success">active</Badge>
-        </div>
-      ),
-      type: "Bundle",
-      discount: "10% off",
-      fulfillmentStatus: (
-        <div className="custom-badge">
-          <Badge progress="complete">Disabled</Badge>
-        </div>
-      ),
-    },
-    {
-      id: "1023",
-      bundle: (
-        <div className="avatar-row">
-          <Avatar customer name="Farrah" />
-          <Avatar customer name="Farrah" />
-        </div>
-      ),
-      name: "bundle #1",
-      status: (
-        <div className="custom-badge">
-          <Badge status="success">active</Badge>
-        </div>
-      ),
-      type: "Bundle",
-      discount: "10% off",
-      fulfillmentStatus: (
-        <div className="custom-badge">
-          <Badge progress="complete">Disabled</Badge>
-        </div>
-      ),
-    },
-    {
-      id: "1024",
-      bundle: (
-        <div className="avatar-row">
-          <Avatar customer name="Farrah" />
-          <Avatar customer name="Farrah" />
-        </div>
-      ),
-      name: "bundle #1",
-      status: (
-        <div className="custom-badge">
-          <Badge status="success">active</Badge>
-        </div>
-      ),
-      type: "Bundle",
-      discount: "10% off",
-      fulfillmentStatus: (
-        <div className="custom-badge">
-          <Badge progress="complete">Disabled</Badge>
-        </div>
-      ),
-    },
-    {
-      id: "1025",
-      bundle: (
-        <div className="avatar-row">
-          <Avatar customer name="Farrah" />
-          <Avatar customer name="Farrah" />
-        </div>
-      ),
-      name: "bundle #1",
-      status: (
-        <div className="custom-badge">
-          <Badge status="success">active</Badge>
-        </div>
-      ),
-      type: "Bundle",
-      discount: "10% off",
-      fulfillmentStatus: (
-        <div className="custom-badge">
-          <Badge progress="complete">Disabled</Badge>
-        </div>
-      ),
-    },
-    {
-      id: "1026",
-      bundle: (
-        <div className="avatar-row">
-          <Avatar customer name="Farrah" />
-          <Avatar customer name="Farrah" />
-        </div>
-      ),
-      name: "bundle #1",
-      status: (
-        <div className="custom-badge">
-          <Badge status="success">active</Badge>
-        </div>
-      ),
-      type: "Bundle",
-      discount: "10% off",
-      fulfillmentStatus: (
-        <div className="custom-badge">
-          <Badge progress="complete">Disabled</Badge>
-        </div>
-      ),
-    },
-    {
-      id: "1027",
-      bundle: (
-        <div className="avatar-row">
-          <Avatar customer name="Farrah" />
-          <Avatar customer name="Farrah" />
-        </div>
-      ),
-      name: "bundle #1",
-      status: (
-        <div className="custom-badge">
-          <Badge status="success">active</Badge>
-        </div>
-      ),
-      type: "Bundle",
-      discount: "10% off",
-      fulfillmentStatus: (
-        <div className="custom-badge">
-          <Badge progress="complete">Disabled</Badge>
-        </div>
-      ),
-    },
-    {
-      id: "1028",
-      bundle: (
-        <div className="avatar-row">
-          <Avatar customer name="Farrah" />
-          <Avatar customer name="Farrah" />
-        </div>
-      ),
-      name: "bundle #1",
-      status: (
-        <div className="custom-badge">
-          <Badge status="success">active</Badge>
-        </div>
-      ),
-      type: "Bundle",
-      discount: "10% off",
-      fulfillmentStatus: (
-        <div className="custom-badge">
-          <Badge progress="complete">Disabled</Badge>
-        </div>
-      ),
-    },
-    {
-      id: "1029",
-      bundle: (
-        <div className="avatar-row">
-          <Avatar customer name="Farrah" />
-          <Avatar customer name="Farrah" />
-        </div>
-      ),
-      name: "bundle #1",
-      status: (
-        <div className="custom-badge">
-          <Badge status="success">active</Badge>
-        </div>
-      ),
-      type: "Bundle",
-      discount: "10% off",
-      fulfillmentStatus: (
-        <div className="custom-badge">
-          <Badge progress="complete">Disabled</Badge>
-        </div>
-      ),
-    },
-  ]);
+  const [orders, setOrders] = useState([]);
 
   const editBundle = (id) => {
     cnav("/app/create_bundle_form");
@@ -461,18 +274,16 @@ export default function AdditionalPage() {
   };
 
   useEffect(() => {
-    // Map the bundle data to the desired format
-    const mappedTableData = data.map((bundle) => ({
-      id: bundle.id,
+    // Map bundles
+    const bundleRows = data.map((bundle) => ({
+      id: `bundle-${bundle.id}`,
+      _rawId: bundle.id,
+      _kind: "bundle",
+      _status: bundle.bundle_status,
       bundle: (
         <div className="avatar-row">
           {bundle.bundle_items.map((item) => (
-            <Avatar
-              customer
-              key={item.id}
-              name={item.name}
-              source={item.image}
-            />
+            <Avatar customer key={item.id} name={item.name} source={item.image} />
           ))}
         </div>
       ),
@@ -484,13 +295,67 @@ export default function AdditionalPage() {
           </Badge>
         </div>
       ),
-      type: "Bundle",
+      type: <div style={{ width: "max-content" }}><Badge>Fixed Bundle</Badge></div>,
       discount:
-        bundle.bundle_discount_type == "percentage"
+        bundle.bundle_discount_type === "percentage"
           ? `${bundle.bundle_discount_value}% off`
           : `$${bundle.bundle_discount_value} off`,
-      
     }));
+
+    // Map volume discounts
+    const discountRows = discountData.map((d) => ({
+      id: `discount-${d.id}`,
+      _rawId: d.id,
+      _kind: "discount",
+      _status: d.status,
+      _productId: d.product_id,
+      bundle: d.product_image
+        ? <Avatar customer name={d.product_title} source={d.product_image} />
+        : <Avatar customer name={d.product_title} />,
+      name: d.title,
+      status: (
+        <div className="custom-badge">
+          <Badge status={d.status ? "success" : "default"}>
+            {d.status ? "active" : "inactive"}
+          </Badge>
+        </div>
+      ),
+      type: <div style={{ width: "max-content" }}><Badge tone="info">Volume Discount</Badge></div>,
+      discount: d.tiers?.length
+        ? `${d.tiers[0].min_quantity}+ → ${d.tiers[0].discount_type === "percentage" ? `${d.tiers[0].discount_value}%` : `$${d.tiers[0].discount_value}`} off`
+        : "—",
+    }));
+
+    // Map BOGO offers
+    const bogoRows = bogoData.map((b) => ({
+      id: `bogo-${b.id}`,
+      _rawId: b.id,
+      _kind: "bogo",
+      _status: b.status,
+      bundle: (
+        <HorizontalStack gap="1">
+          {b.buy_product_image
+            ? <Avatar customer name={b.buy_product_title} source={b.buy_product_image} />
+            : <Avatar customer name={b.buy_product_title} />}
+          <span style={{ alignSelf: "center", fontSize: "12px", color: "#666" }}>→</span>
+          {b.get_product_image
+            ? <Avatar customer name={b.get_product_title} source={b.get_product_image} />
+            : <Avatar customer name={b.get_product_title} />}
+        </HorizontalStack>
+      ),
+      name: b.title,
+      status: (
+        <div className="custom-badge">
+          <Badge status={b.status ? "success" : "default"}>
+            {b.status ? "active" : "inactive"}
+          </Badge>
+        </div>
+      ),
+      type: <div style={{ width: "max-content" }}><Badge tone="warning">Buy X Get Y</Badge></div>,
+      discount: `${b.discount_value === 100 ? "Free" : `${b.discount_value}% off`}`,
+    }));
+
+    const mappedTableData = [...bundleRows, ...discountRows, ...bogoRows];
 
     
 
@@ -565,18 +430,66 @@ export default function AdditionalPage() {
   }, [data]);
   //use effect closed
   const resourceName = {
-    singular: "bundle",
-    plural: "Bundles",
+    singular: "offer",
+    plural: "Offers",
   };
 
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(orders);
+  const filteredOrders = useMemo(() => {
+    let result = orders;
+    // Status tab filter
+    if (tselected === 1) result = result.filter((r) => r._status === true);
+    if (tselected === 2) result = result.filter((r) => r._status === false);
+    // Type filter
+    if (typeFilter !== "all") result = result.filter((r) => r._kind === typeFilter);
+    // Search filter
+    if (searchValue.trim()) {
+      const q = searchValue.toLowerCase();
+      result = result.filter((r) => r.name.toLowerCase().includes(q));
+    }
+    return result;
+  }, [orders, tselected, typeFilter, searchValue]);
 
-  const rowMarkup = orders.map(
-    (
-      { id, bundle, name, status, type, discount, fulfillmentStatus },
-      index
-    ) => (
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
+  const pagedOrders = filteredOrders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const { selectedResources, allResourcesSelected, handleSelectionChange } =
+    useIndexResourceState(filteredOrders);
+
+  const handleDeleteOffer = useCallback((row) => {
+    if (!confirm(`Delete this offer? This cannot be undone.`)) return;
+    if (row._kind === "bundle") {
+      // Bundle delete: post to bundle form action with intent=delete
+      const body = new URLSearchParams();
+      body.append("intent", "delete");
+      body.append("bundle_id", String(row._rawId));
+      fetch(`/app/create_bundle_form/${row._rawId}`, { method: "POST", body: body.toString(), headers: { "Content-Type": "application/x-www-form-urlencoded" } })
+        .then((r) => r.ok && window.shopify?.toast?.show("Offer deleted."))
+        .then(() => fetcher.load("/app/additional"));
+    } else if (row._kind === "discount") {
+      // Volume discount delete: post to volume_discounts action
+      const fd = new FormData();
+      fd.append("intent", "delete");
+      fd.append("id", String(row._rawId));
+      fd.append("product_id", row._productId || "");
+      fetcher.submit(fd, { method: "POST", action: "/app/volume_discounts" });
+      window.shopify?.toast?.show("Offer deleted.");
+    } else if (row._kind === "bogo") {
+      // BOGO delete: post to bogo form action
+      const fd = new FormData();
+      fd.append("intent", "delete");
+      fetcher.submit(fd, { method: "POST", action: `/app/bogo_form/${row._rawId}` });
+      window.shopify?.toast?.show("Offer deleted.");
+    }
+  }, [fetcher]);
+
+  const rowMarkup = pagedOrders.map((row, index) => {
+    const { id, bundle, name, status, type, discount } = row;
+    const editUrl = row._kind === "bundle"
+      ? `/app/create_bundle_form/${row._rawId}`
+      : row._kind === "bogo"
+      ? `/app/bogo_form/${row._rawId}`
+      : `/app/volume_discount_form/${row._rawId}`;
+    return (
       <IndexTable.Row
         id={id}
         key={id}
@@ -584,26 +497,25 @@ export default function AdditionalPage() {
         position={index}
       >
         <IndexTable.Cell>
-          <Text variant="bodyMd" fontWeight="bold" as="span">
-            {bundle}
-          </Text>
+          <Text variant="bodyMd" fontWeight="bold" as="span">{bundle}</Text>
         </IndexTable.Cell>
         <IndexTable.Cell>{name}</IndexTable.Cell>
         <IndexTable.Cell>{status}</IndexTable.Cell>
         <IndexTable.Cell>{type}</IndexTable.Cell>
         <IndexTable.Cell>{discount}</IndexTable.Cell>
         <IndexTable.Cell>
-          <Link
-            onClick={() => cnav(`/app/create_bundle_form/${id}`)}
-            removeUnderline={true}
-          >
-            <Icon source={EditMajor} color="base" />
-          </Link>
+          <HorizontalStack gap="2">
+            <Link onClick={() => cnav(editUrl)} removeUnderline={true}>
+              <Icon source={EditIcon} color="base" />
+            </Link>
+            <Link onClick={() => handleDeleteOffer(row)} removeUnderline={true}>
+              <Icon source={DeleteIcon} color="base" />
+            </Link>
+          </HorizontalStack>
         </IndexTable.Cell>
-        {/* <IndexTable.Cell>{fulfillmentStatus}</IndexTable.Cell> */}
       </IndexTable.Row>
-    )
-  );
+    );
+  });
 
   const tabs = [
     {
@@ -614,7 +526,7 @@ export default function AdditionalPage() {
     },
     {
       id: "Bundle-fitted-2",
-      content: "Bundle",
+      content: "Offers",
       panelID: "Bundle-fitted-Ccontent-2",
     },
     {
@@ -633,36 +545,8 @@ export default function AdditionalPage() {
       panelID: "Settings-fitted-Ccontent-2",
     },
   ];
-  const [recentRows,setRecentRows] = useState([])
-  const [rows, setRows] = useState([
-    [
-      <div className="avatar-row">
-        <Avatar customer name="Farrah" />
-        <Avatar customer name="Farrah" />
-      </div>,
-      "bundle #1",
-      <Badge status="success">Active</Badge>,
-      "10% off",
-    ],
-    [
-      <div className="avatar-row">
-        <Avatar customer name="Farrah" />
-        <Avatar customer name="Farrah" />
-      </div>,
-      "bundle #2",
-      <Badge>Draft</Badge>,
-      "10% off",
-    ],
-    [
-      <div className="avatar-row">
-        <Avatar customer name="Farrah" />
-        <Avatar customer name="Farrah" />
-      </div>,
-      "bundle #2",
-      <Badge>Draft</Badge>,
-      "10% off",
-    ],
-  ]);
+  const [recentRows, setRecentRows] = useState([]);
+  const [rows, setRows] = useState([]);
 
   return (
     <Frame>
@@ -692,7 +576,7 @@ export default function AdditionalPage() {
                               updates!
                             </p>
                             <div className="btn-secondary-outlined">
-                              <Button outline>
+                              <Button outline url="https://help.shopify.com/en/manual/products/bundles" external>
                                 Read now
                               </Button>
                             </div>
@@ -712,8 +596,8 @@ export default function AdditionalPage() {
                                   Recent Bundle
                                 </Text>
                                 <div className="btn-primary-black">
-                                  <Button onClick={toggleBundlePopup}>
-                                    Create New Bundle
+                                  <Button onClick={handleCreateBundle}>
+                                    Create offer
                                   </Button>
                                 </div>
                               </HorizontalStack>
@@ -748,7 +632,7 @@ export default function AdditionalPage() {
                               ) : (
                                 <Card>
                                   <EmptyState
-                                    heading="No bundles yet!"
+                                    heading="No offers yet!"
                                     // action={{ content: "Add transfer" }}
                                     // secondaryAction={{
                                     //   content: "Learn more",
@@ -775,7 +659,7 @@ export default function AdditionalPage() {
                                     align="center"
                                     inlineAlign="center"
                                   >
-                                    <img src={welcome} width="40" />
+                                    <Icon source={ViewIcon} />
                                     <VerticalStack
                                       align="center"
                                       inlineAlign="center"
@@ -797,7 +681,7 @@ export default function AdditionalPage() {
                                     align="center"
                                     inlineAlign="center"
                                   >
-                                    <img src={welcome} width="40" />
+                                    <Icon source={CursorIcon} />
                                     <VerticalStack
                                       align="center"
                                       inlineAlign="center"
@@ -819,7 +703,7 @@ export default function AdditionalPage() {
                                     align="center"
                                     inlineAlign="center"
                                   >
-                                    <img src={welcome} width="40" />
+                                    <Icon source={OrderIcon} />
                                     <VerticalStack
                                       align="center"
                                       inlineAlign="center"
@@ -841,7 +725,7 @@ export default function AdditionalPage() {
                                     align="center"
                                     inlineAlign="center"
                                   >
-                                    <img src={welcome} width="40" />
+                                    <Icon source={CashDollarIcon} />
                                     <VerticalStack
                                       align="center"
                                       inlineAlign="center"
@@ -871,11 +755,11 @@ export default function AdditionalPage() {
                           blockAlign="center"
                         >
                           <Text variant="headingMd" as="h1">
-                            Bundles
+                            Offers
                           </Text>
                           <div className="btn-primary-black">
-                          <Button onClick={toggleBundlePopup}>
-                            Create new Bundle
+                          <Button onClick={handleCreateBundle}>
+                            Create offer
                           </Button>
                           </div>
                         </HorizontalStack>
@@ -883,150 +767,78 @@ export default function AdditionalPage() {
                       <Tabs
                         tabs={tabletabs}
                         selected={tselected}
-                        onSelect={handleTTabChange}
+                        onSelect={(i) => { handleTTabChange(i); setCurrentPage(1); }}
                       >
-                        {tselected === 0 && (
-                          <div className="bundle-table">
-                            <div className="filter-div">
-                              <HorizontalStack wrap={false} gap="2">
-                                <div className="filter-input">
-                                  <TextField
-                                    label="Filter"
-                                    labelHidden
-                                    type="text"
-                                    onChange={handleTextFieldChange}
-                                    prefix={<Icon source={SearchMinor} />}
-                                    placeholder="Filter"
-                                    autoComplete="off"
-                                  />
-                                </div>
-
-                                <div>
-                                  <HorizontalStack wrap={false} gap="1">
-                                    <Popover
-                                      active={active.active_one}
-                                      activator={activatorone}
-                                      autofocusTarget="first-node"
-                                      onClose={() => toggleActive("active_one")}
-                                    >
-                                      <ActionList
-                                        actionRole="menuitem"
-                                        items={[
-                                          {
-                                            content: "Import file",
-                                            onAction: () => console.log("1"),
-                                          },
-                                          {
-                                            content: "Export file",
-                                            onAction: () => console.log("1"),
-                                          },
-                                        ]}
-                                      />
-                                    </Popover>
-                                    <Popover
-                                      active={active.active_two}
-                                      activator={activatortwo}
-                                      autofocusTarget="first-node"
-                                      onClose={() => toggleActive("active_two")}
-                                    >
-                                      <ActionList
-                                        actionRole="menuitem"
-                                        items={[
-                                          {
-                                            content: "Import file",
-                                            onAction: () => console.log("1"),
-                                          },
-                                          {
-                                            content: "Export file",
-                                            onAction: () => console.log("1"),
-                                          },
-                                        ]}
-                                      />
-                                    </Popover>
-                                    <Popover
-                                      active={active.active_three}
-                                      activator={activatorthree}
-                                      autofocusTarget="first-node"
-                                      onClose={() =>
-                                        toggleActive("active_three")
-                                      }
-                                    >
-                                      <ActionList
-                                        actionRole="menuitem"
-                                        items={[
-                                          {
-                                            content: "Import file",
-                                            onAction: () => console.log("1"),
-                                          },
-                                          {
-                                            content: "Export file",
-                                            onAction: () => console.log("1"),
-                                          },
-                                        ]}
-                                      />
-                                    </Popover>
-                                  </HorizontalStack>
-                                </div>
-                                <div>
-                                  <HorizontalStack wrap={false} gap="2">
-                                    <Button disabled>
-                                      <HorizontalStack wrap={false} blockAlign="center">
-                                        <Icon source={SortMinor} />
-                                        <Text variant="bodySm" as="p">
-                                          Saved
-                                        </Text>
-                                      </HorizontalStack>{" "}
-                                    </Button>
-                                    <Button>
-                                      {" "}
-                                      <HorizontalStack wrap={false} blockAlign="center"> 
-                                        <Icon source={SortMinor} />
-                                        <Text variant="bodySm" as="p">
-                                          Sort
-                                        </Text>
-                                      </HorizontalStack>
-                                    </Button>
-                                  </HorizontalStack>
-                                </div>
-                              </HorizontalStack>
-                            </div>
-                            <IndexTable
-                              resourceName={resourceName}
-                              itemCount={orders.length}
-                              selectedItemsCount={
-                                allResourcesSelected
-                                  ? "All"
-                                  : selectedResources.length
-                              }
-                              hasMoreItems={true}
-                              onSelectionChange={handleSelectionChange}
-                              headings={[
-                                { title: "Bundled items" },
-                                { title: "Name" },
-                                { title: "Status" },
-                                { title: "Type" },
-                                { title: "Discount" },
-                                { title: "Action" },
-                                // { title: "Bundle as a product" },
-                              ]}
-                            >
-                              {rowMarkup}
-                            </IndexTable>
-                            <div className="table-pagination">
-                              <Pagination
-                                label="Show page 1 of 1"
-                                hasPrevious
-                                onPrevious={() => {
-                                  console.log("Previous");
-                                }}
-                                hasNext
-                                onNext={() => {
-                                  console.log("Next");
-                                }}
-                              />
-                            </div>
+                        <div className="bundle-table">
+                          <div className="filter-div">
+                            <HorizontalStack wrap={false} gap="2">
+                              <div className="filter-input">
+                                <TextField
+                                  label="Search"
+                                  labelHidden
+                                  type="text"
+                                  value={searchValue}
+                                  onChange={handleSearchChange}
+                                  prefix={<Icon source={SearchIcon} />}
+                                  placeholder="Search offers"
+                                  autoComplete="off"
+                                  clearButton
+                                  onClearButtonClick={() => handleSearchChange("")}
+                                />
+                              </div>
+                              <Popover
+                                active={typePopoverOpen}
+                                activator={
+                                  <Button onClick={() => setTypePopoverOpen((v) => !v)} disclosure>
+                                    {typeLabels[typeFilter]}
+                                  </Button>
+                                }
+                                autofocusTarget="first-node"
+                                onClose={() => setTypePopoverOpen(false)}
+                              >
+                                <ActionList
+                                  actionRole="menuitem"
+                                  items={[
+                                    { content: "All types", onAction: () => handleTypeFilter("all"), active: typeFilter === "all" },
+                                    { content: "Fixed Bundle", onAction: () => handleTypeFilter("bundle"), active: typeFilter === "bundle" },
+                                    { content: "Volume Discount", onAction: () => handleTypeFilter("discount"), active: typeFilter === "discount" },
+                                    { content: "Buy X Get Y", onAction: () => handleTypeFilter("bogo"), active: typeFilter === "bogo" },
+                                  ]}
+                                />
+                              </Popover>
+                            </HorizontalStack>
                           </div>
-                        )}
+                          <IndexTable
+                            resourceName={resourceName}
+                            itemCount={filteredOrders.length}
+                            selectedItemsCount={allResourcesSelected ? "All" : selectedResources.length}
+                            onSelectionChange={handleSelectionChange}
+                            headings={[
+                              { title: "Product(s)" },
+                              { title: "Name" },
+                              { title: "Status" },
+                              { title: "Type" },
+                              { title: "Discount" },
+                              { title: "Action" },
+                            ]}
+                            emptyState={
+                              <div style={{ padding: "40px", textAlign: "center" }}>
+                                <Text color="subdued" as="p">No offers match your filters.</Text>
+                              </div>
+                            }
+                          >
+                            {rowMarkup}
+                          </IndexTable>
+                          <div className="table-pagination">
+                            <Pagination
+                              label={`Page ${currentPage} of ${totalPages}`}
+                              hasPrevious={currentPage > 1}
+                              onPrevious={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                              hasNext={currentPage < totalPages}
+                              onNext={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            />
+                          </div>
+                        </div>
                       </Tabs>
                     </div>
                   )}
@@ -1068,7 +880,7 @@ export default function AdditionalPage() {
                           className="btn-primary-black btn-radius-4"
                             style={{ display: "flex", justifyContent: "end" }}
                           >
-                            <Button>Customize</Button>
+                            <Button onClick={() => window.open(`https://${shop}/admin/themes/current/editor`, '_blank')}>Customize</Button>
                           </div>
                         </Card>
                         <Divider />
@@ -1108,7 +920,7 @@ export default function AdditionalPage() {
                                       marginTop: "7px",
                                     }}
                                   >
-                                    <Button>Customize</Button>
+                                    <Button onClick={handleComingSoon}>Customize</Button>
                                   </div>
                               </div>
                             </Card>
@@ -1136,7 +948,7 @@ export default function AdditionalPage() {
                                     marginTop: "7px",
                                   }}
                                 >
-                                  <Button primary>Customize</Button>
+                                  <Button primary onClick={handleComingSoon}>Customize</Button>
                                 </div>
                               </div>
                             </Card>
@@ -1148,130 +960,180 @@ export default function AdditionalPage() {
                   )}
                   {selected == 3 && (
                     <div className="analytics-tab-main">
-                      <VerticalStack gap="4">
-                        <Text as="h1" variant="headingLg">
-                          Analytics
-                        </Text>
-                        <ButtonGroup segmented>
-                          <Button
-                            pressed={activeAnalyticsButtonIndex === 0}
-                            onClick={() => handleAnalyticsButtonClick(0)}
-                          >
-                            Based on bundle
-                          </Button>
-                          <Button
-                            pressed={activeAnalyticsButtonIndex === 1}
-                            onClick={() => handleAnalyticsButtonClick(1)}
-                          >
-                            Based on order
-                          </Button>
-                        </ButtonGroup>
-                      </VerticalStack>
-                      <div
-                        className="analytics-filter-div"
-                        style={{ marginBottom: "33px", marginTop: "8px" }}
-                      >
-                        <HorizontalStack gap="5" blockAlign="center">
-                          <Text variant="bodyMd" as="p">
-                            Data range
-                          </Text>
-                          <div className="analytics-filter-selector">
-                            <Select
-                              label="Analytics filter"
-                              labelHidden
-                              options={analyticsfilteroptions}
-                              onChange={handleFilterSelectChange}
-                              value={filterSelected}
-                            />
-                          </div>
-                        </HorizontalStack>
-                      </div>
-                      <div
-                        className="analytics-cards"
-                        style={{ marginBottom: "40px" }}
-                      >
-                        <HorizontalGrid columns={4} gap="5">
+                      <VerticalStack gap="5">
+                        <Text as="h1" variant="headingLg">Analytics</Text>
+
+                        {/* ── KPI cards ── */}
+                        <HorizontalGrid columns={4} gap="4">
                           <Card>
-                            <VerticalStack gap="4" inlineAlign="center">
-                              <Text variant="bodyMd" as="p">
-                                Total bundle sales
-                              </Text>
-                              <Text variant="bodyLg" as="p">
-                                $ {saleCount}
-                              </Text>
+                            <VerticalStack gap="2" inlineAlign="center">
+                              <Text variant="bodySm" color="subdued" as="p">Total sales</Text>
+                              <Text variant="headingLg" as="p">${saleCount.toLocaleString()}</Text>
                             </VerticalStack>
                           </Card>
                           <Card>
-                            <VerticalStack gap="4" inlineAlign="center">
-                              <Text variant="bodyMd" as="p">
-                                Number of bundles sold
-                              </Text>
-                              <Text variant="bodyLg" as="p">
-                                {orderCount}
-                              </Text>
+                            <VerticalStack gap="2" inlineAlign="center">
+                              <Text variant="bodySm" color="subdued" as="p">Bundles sold</Text>
+                              <Text variant="headingLg" as="p">{orderCount.toLocaleString()}</Text>
                             </VerticalStack>
                           </Card>
                           <Card>
-                            <VerticalStack gap="4" inlineAlign="center">
-                              <Text variant="bodyMd" as="p">
-                                Bundles view
-                              </Text>
-                              <Text variant="bodyLg" as="p">
-                                {viewCount}
-                              </Text>
+                            <VerticalStack gap="2" inlineAlign="center">
+                              <Text variant="bodySm" color="subdued" as="p">Total views</Text>
+                              <Text variant="headingLg" as="p">{viewCount.toLocaleString()}</Text>
                             </VerticalStack>
                           </Card>
                           <Card>
-                            <VerticalStack gap="4" inlineAlign="center">
-                              <Text variant="bodyMd" as="p">
-                                Bundles clicks
-                              </Text>
-                              <Text variant="bodyLg" as="p">
-                                {clickCount}
-                              </Text>
+                            <VerticalStack gap="2" inlineAlign="center">
+                              <Text variant="bodySm" color="subdued" as="p">Total clicks</Text>
+                              <Text variant="headingLg" as="p">{clickCount.toLocaleString()}</Text>
                             </VerticalStack>
                           </Card>
                         </HorizontalGrid>
-                      </div>
-                      <div className="bundle-table">
-                        <DataTable
-                          columnContentTypes={[
-                            "text",
-                            "text",
-                            "text",
-                            "text",
-                            "text",
-                            "text",
-                            "text",
-                          ]}
-                          headings={[
-                            "Bundle items",
-                            "Bundle name",
-                            "Status",
-                            "Total sales",
-                            "Number sold",
-                            "Clicks",
-                            "Views",
-                          ]}
-                          rows={rows}
-                          footerContent={
-                            <div className="analytics-table-pagination">
-                              <Pagination
-                                label="Showing page 1 of 1"
-                                hasPrevious
-                                onPrevious={() => {
-                                  console.log("Previous");
-                                }}
-                                hasNext
-                                onNext={() => {
-                                  console.log("Next");
-                                }}
-                              />
-                            </div>
-                          }
-                          hasZebraStripingOnData
-                        />
-                      </div>
+
+                        {/* ── Sales & Orders over time ── */}
+                        <Card>
+                          <VerticalStack gap="4">
+                            <Text variant="headingMd" as="h2">Sales & orders — last 30 days</Text>
+                            <ClientOnly fallback={<div style={{ height: 260 }} />}>
+                              {() => timeSeries.some((d) => d.sales > 0 || d.orders > 0) ? (
+                                <div style={{ width: "100%", height: 260 }}>
+                                  <ResponsiveContainer>
+                                    <AreaChart data={timeSeries} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                                      <defs>
+                                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                                          <stop offset="5%" stopColor="#008060" stopOpacity={0.15} />
+                                          <stop offset="95%" stopColor="#008060" stopOpacity={0} />
+                                        </linearGradient>
+                                      </defs>
+                                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                      <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={4} />
+                                      <YAxis yAxisId="sales" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} width={56} />
+                                      <YAxis yAxisId="orders" orientation="right" tick={{ fontSize: 11 }} width={36} allowDecimals={false} />
+                                      <Tooltip formatter={(value, name) => name === "sales" ? [`$${value}`, "Sales"] : [value, "Orders"]} />
+                                      <Legend />
+                                      <Area yAxisId="sales" type="monotone" dataKey="sales" stroke="#008060" fill="url(#colorSales)" strokeWidth={2} dot={false} />
+                                      <Area yAxisId="orders" type="monotone" dataKey="orders" stroke="#2c6ecb" fill="none" strokeWidth={2} dot={false} strokeDasharray="4 2" />
+                                    </AreaChart>
+                                  </ResponsiveContainer>
+                                </div>
+                              ) : (
+                                <div style={{ padding: "40px 0", textAlign: "center" }}>
+                                  <Text variant="bodySm" color="subdued" as="p">No order data yet — chart will populate as bundles are sold.</Text>
+                                </div>
+                              )}
+                            </ClientOnly>
+                          </VerticalStack>
+                        </Card>
+
+                        {/* ── Top bundles by revenue ── */}
+                        {data.length > 0 && (
+                          <Card>
+                            <VerticalStack gap="4">
+                              <Text variant="headingMd" as="h2">Top fixed bundles by revenue</Text>
+                              <ClientOnly fallback={<div style={{ height: Math.max(180, Math.min(data.length, 8) * 40 + 40) }} />}>
+                                {() => (
+                                  <div style={{ width: "100%", height: Math.max(180, Math.min(data.length, 8) * 40 + 40) }}>
+                                    <ResponsiveContainer>
+                                      <BarChart
+                                        layout="vertical"
+                                        data={[...data]
+                                          .sort((a, b) => b.bundle_sales - a.bundle_sales)
+                                          .slice(0, 8)
+                                          .map((b) => ({ name: b.bundle_name, revenue: b.bundle_sales, orders: b.bundle_orders }))}
+                                        margin={{ top: 4, right: 24, left: 8, bottom: 0 }}
+                                      >
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+                                        <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
+                                        <Tooltip formatter={(v, name) => name === "revenue" ? [`$${v}`, "Revenue"] : [v, "Orders"]} />
+                                        <Legend />
+                                        <Bar dataKey="revenue" fill="#008060" radius={[0, 4, 4, 0]} />
+                                        <Bar dataKey="orders" fill="#2c6ecb" radius={[0, 4, 4, 0]} />
+                                      </BarChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                )}
+                              </ClientOnly>
+                            </VerticalStack>
+                          </Card>
+                        )}
+
+                        {/* ── Engagement per bundle ── */}
+                        {data.length > 0 && (
+                          <Card>
+                            <VerticalStack gap="4">
+                              <Text variant="headingMd" as="h2">Engagement breakdown</Text>
+                              <ClientOnly fallback={<div style={{ height: 260 }} />}>
+                                {() => (
+                                  <div style={{ width: "100%", height: 260 }}>
+                                    <ResponsiveContainer>
+                                      <BarChart
+                                        data={[...data]
+                                          .sort((a, b) => b.bundle_views - a.bundle_views)
+                                          .slice(0, 6)
+                                          .map((b) => ({
+                                            name: b.bundle_name.length > 18 ? b.bundle_name.slice(0, 18) + "…" : b.bundle_name,
+                                            Views: b.bundle_views,
+                                            Clicks: b.bundle_clicks,
+                                            Orders: b.bundle_orders,
+                                          }))}
+                                        margin={{ top: 4, right: 16, left: 0, bottom: 24 }}
+                                      >
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                        <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" />
+                                        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar dataKey="Views" fill="#b5d4f1" radius={[4, 4, 0, 0]} />
+                                        <Bar dataKey="Clicks" fill="#2c6ecb" radius={[4, 4, 0, 0]} />
+                                        <Bar dataKey="Orders" fill="#008060" radius={[4, 4, 0, 0]} />
+                                      </BarChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                )}
+                              </ClientOnly>
+                            </VerticalStack>
+                          </Card>
+                        )}
+
+                        {/* ── Per-bundle data table ── */}
+                        <Card>
+                          <VerticalStack gap="3">
+                            <Text variant="headingMd" as="h2">Bundle breakdown</Text>
+                            <DataTable
+                              columnContentTypes={["text","text","numeric","numeric","numeric","numeric"]}
+                              headings={["Name","Status","Sales ($)","Orders","Clicks","Views"]}
+                              rows={data.map((b) => [
+                                b.bundle_name,
+                                b.bundle_status ? "Active" : "Draft",
+                                `$${b.bundle_sales.toLocaleString()}`,
+                                b.bundle_orders,
+                                b.bundle_clicks,
+                                b.bundle_views,
+                              ])}
+                              hasZebraStripingOnData
+                            />
+                          </VerticalStack>
+                        </Card>
+
+                        {/* ── Orders by offer type (last 30 days) ── */}
+                        <Card>
+                          <VerticalStack gap="3">
+                            <Text variant="headingMd" as="h2">Orders by offer type — last 30 days</Text>
+                            <DataTable
+                              columnContentTypes={["text", "numeric", "numeric"]}
+                              headings={["Offer type", "Orders", "Revenue"]}
+                              rows={[
+                                ["Fixed Bundle", offerTypeTotals.bundle.orders, `$${offerTypeTotals.bundle.sales.toLocaleString()}`],
+                                ["Volume Discount", offerTypeTotals.volume_discount.orders, `$${offerTypeTotals.volume_discount.sales.toLocaleString()}`],
+                                ["Buy X Get Y", offerTypeTotals.bogo.orders, `$${offerTypeTotals.bogo.sales.toLocaleString()}`],
+                              ]}
+                              hasZebraStripingOnData
+                            />
+                          </VerticalStack>
+                        </Card>
+                      </VerticalStack>
                     </div>
                   )}
                   {selected == 4 && (
@@ -1299,11 +1161,9 @@ export default function AdditionalPage() {
                             >
                               <Card>
                                 <HorizontalStack wrap={false} gap="5">
-                                  <Avatar
-                                    shape="square"
-                                    customer
-                                    name="Farrah"
-                                  />
+                                  <Box background="bg-surface-secondary" borderRadius="2" padding="3">
+                                    <Icon source={SettingsIcon} />
+                                  </Box>
                                   <VerticalStack>
                                     <Text as="h2" variant="headingMd">
                                       Bundle settings
@@ -1320,14 +1180,12 @@ export default function AdditionalPage() {
                         </Grid.Cell>
                         <Grid.Cell>
                           <div className="settingtab-card">
-                            <Link removeUnderline={true}>
+                            <Link onClick={() => cnav("/app/translation")} removeUnderline={true}>
                               <Card>
                                 <HorizontalStack wrap={false} gap="5">
-                                  <Avatar
-                                    shape="square"
-                                    customer
-                                    name="Farrah"
-                                  />
+                                  <Box background="bg-surface-secondary" borderRadius="2" padding="3">
+                                    <Icon source={LanguageTranslateIcon} />
+                                  </Box>
                                   <VerticalStack>
                                     <Text as="h2" variant="headingMd">
                                       Translation
@@ -1344,14 +1202,12 @@ export default function AdditionalPage() {
                         </Grid.Cell>
                         <Grid.Cell>
                           <div className="settingtab-card">
-                            <Link removeUnderline={true}>
+                            <Link onClick={() => window.open("mailto:hello@superbundle.app", "_blank")} removeUnderline={true}>
                               <Card>
                                 <HorizontalStack wrap={false} gap="5">
-                                  <Avatar
-                                    shape="square"
-                                    customer
-                                    name="Farrah"
-                                  />
+                                  <Box background="bg-surface-secondary" borderRadius="2" padding="3">
+                                    <Icon source={QuestionCircleIcon} />
+                                  </Box>
                                   <VerticalStack>
                                     <Text as="h2" variant="headingMd">
                                       Feature Request
@@ -1367,14 +1223,12 @@ export default function AdditionalPage() {
                         </Grid.Cell>
                         <Grid.Cell>
                           <div className="settingtab-card">
-                            <Link removeUnderline={true}>
+                            <Link onClick={() => cnav("/app/plan")} removeUnderline={true}>
                               <Card>
                                 <HorizontalStack wrap={false} gap="5">
-                                  <Avatar
-                                    shape="square"
-                                    customer
-                                    name="Farrah"
-                                  />
+                                  <Box background="bg-surface-secondary" borderRadius="2" padding="3">
+                                    <Icon source={CreditCardIcon} />
+                                  </Box>
                                   <VerticalStack>
                                     <Text as="h2" variant="headingMd">
                                       Plan
@@ -1390,14 +1244,12 @@ export default function AdditionalPage() {
                         </Grid.Cell>
                         <Grid.Cell>
                           <div className="settingtab-card">
-                            <Link removeUnderline={true}>
+                            <Link onClick={() => cnav("/app/restore_pages")} removeUnderline={true}>
                               <Card>
                                 <HorizontalStack wrap={false} gap="5">
-                                  <Avatar
-                                    shape="square"
-                                    customer
-                                    name="Farrah"
-                                  />
+                                  <Box background="bg-surface-secondary" borderRadius="2" padding="3">
+                                    <Icon source={RefreshIcon} />
+                                  </Box>
                                   <VerticalStack>
                                     <Text as="h2" variant="headingMd">
                                       Restore pages
@@ -1406,30 +1258,6 @@ export default function AdditionalPage() {
                                       Recreate the Bundles page and the Bundle
                                       builder page if they are mistakenly
                                       removed.
-                                    </Text>
-                                  </VerticalStack>
-                                </HorizontalStack>
-                              </Card>
-                            </Link>
-                          </div>
-                        </Grid.Cell>
-                        <Grid.Cell>
-                          <div className="settingtab-card">
-                            <Link removeUnderline={true}>
-                              <Card>
-                                <HorizontalStack wrap={false} gap="5">
-                                  <Avatar
-                                    shape="square"
-                                    customer
-                                    name="Farrah"
-                                  />
-                                  <VerticalStack>
-                                    <Text as="h2" variant="headingMd">
-                                      Featured apps
-                                    </Text>
-                                    <Text as="p" variant="bodyMd">
-                                      Grow your business with a handpicked
-                                      collection of apps
                                     </Text>
                                   </VerticalStack>
                                 </HorizontalStack>
@@ -1502,7 +1330,7 @@ export default function AdditionalPage() {
                             <Grid.Cell
                               columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
                             >
-                              <Link removeUnderline={true}>
+                              <Link onClick={() => { toggleBundlePopup(); cnav("/app/volume_discount_form/new"); }} removeUnderline={true}>
                                 <VerticalStack gap="5">
                                   <HorizontalStack
                                     wrap={false}
@@ -1518,9 +1346,11 @@ export default function AdditionalPage() {
                                       />
                                     </>
                                     <VerticalStack inlineAlign="start">
-                                      <Text variant="headingMd" as="h2">
-                                        Volume discount
-                                      </Text>
+                                      <HorizontalStack gap="2" blockAlign="center">
+                                        <Text variant="headingMd" as="h2">
+                                          Volume discount
+                                        </Text>
+                                      </HorizontalStack>
                                       <div className="bundle-popup-button-subtext">
                                         <Text
                                           variant="bodySm"
@@ -1546,7 +1376,7 @@ export default function AdditionalPage() {
                             <Grid.Cell
                               columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
                             >
-                              <Link removeUnderline={true}>
+                              <Link onClick={() => { toggleBundlePopup(); cnav("/app/bogo_form/new"); }} removeUnderline={true}>
                                 <VerticalStack gap="5">
                                   <HorizontalStack
                                     wrap={false}
@@ -1563,7 +1393,7 @@ export default function AdditionalPage() {
                                     </>
                                     <VerticalStack inlineAlign="start">
                                       <Text variant="headingMd" as="h2">
-                                        Product mix & match
+                                        Buy X Get Y
                                       </Text>
                                       <div className="bundle-popup-button-subtext">
                                         <Text
@@ -1571,10 +1401,7 @@ export default function AdditionalPage() {
                                           as="p"
                                           alignment="start"
                                         >
-                                          Offer a discount when a customer buys
-                                          at least a specific number of items
-                                          from a group of products. (Combo
-                                          product option is available)
+                                          Offer a discount on a second product when customers buy a specific product.
                                         </Text>
                                       </div>
                                     </VerticalStack>
@@ -1582,8 +1409,7 @@ export default function AdditionalPage() {
                                   <Banner tone="info">
                                     <div className="bundle-popup-button-footer-text">
                                       <Text variant="bodySm" as="p">
-                                        Example: Buy at least 2 items from X, Y,
-                                        Z to get 20% off.
+                                        Example: Buy a shirt, get a hat 50% off.
                                       </Text>
                                     </div>
                                   </Banner>
@@ -1593,7 +1419,7 @@ export default function AdditionalPage() {
                             <Grid.Cell
                               columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
                             >
-                              <Link removeUnderline={true}>
+                              <Link onClick={handleComingSoon} removeUnderline={true}>
                                 <VerticalStack gap="5">
                                   <HorizontalStack
                                     wrap={false}
@@ -1609,9 +1435,12 @@ export default function AdditionalPage() {
                                       />
                                     </>
                                     <VerticalStack inlineAlign="start">
-                                      <Text variant="headingMd" as="h2">
-                                        Collection mix & match
-                                      </Text>
+                                      <HorizontalStack gap="2" blockAlign="center">
+                                        <Text variant="headingMd" as="h2">
+                                          Collection mix & match
+                                        </Text>
+                                        <Badge tone="info">Coming soon</Badge>
+                                      </HorizontalStack>
                                       <div className="bundle-popup-button-subtext">
                                         <Text
                                           variant="bodySm"
@@ -1637,7 +1466,7 @@ export default function AdditionalPage() {
                             <Grid.Cell
                               columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
                             >
-                              <Link removeUnderline={true}>
+                              <Link onClick={handleComingSoon} removeUnderline={true}>
                                 <VerticalStack gap="5">
                                   <HorizontalStack
                                     wrap={false}
@@ -1653,9 +1482,12 @@ export default function AdditionalPage() {
                                       />
                                     </>
                                     <VerticalStack inlineAlign="start">
-                                      <Text variant="headingMd" as="h2">
-                                        Buy X get Y
-                                      </Text>
+                                      <HorizontalStack gap="2" blockAlign="center">
+                                        <Text variant="headingMd" as="h2">
+                                          Buy X get Y
+                                        </Text>
+                                        <Badge tone="info">Coming soon</Badge>
+                                      </HorizontalStack>
                                       <div className="bundle-popup-button-subtext">
                                         <Text
                                           variant="bodySm"
@@ -1683,7 +1515,7 @@ export default function AdditionalPage() {
                             <Grid.Cell
                               columnSpan={{ xs: 6, sm: 3, md: 3, lg: 6, xl: 6 }}
                             >
-                              <Link removeUnderline={true}>
+                              <Link onClick={handleComingSoon} removeUnderline={true}>
                                 <VerticalStack gap="5">
                                   <HorizontalStack
                                     wrap={false}
@@ -1699,9 +1531,12 @@ export default function AdditionalPage() {
                                       />
                                     </>
                                     <VerticalStack inlineAlign="start">
-                                      <Text variant="headingMd" as="h2">
-                                        Frequently bought together
-                                      </Text>
+                                      <HorizontalStack gap="2" blockAlign="center">
+                                        <Text variant="headingMd" as="h2">
+                                          Frequently bought together
+                                        </Text>
+                                        <Badge tone="info">Coming soon</Badge>
+                                      </HorizontalStack>
                                       <div className="bundle-popup-button-subtext">
                                         <Text
                                           variant="bodySm"
@@ -1731,6 +1566,29 @@ export default function AdditionalPage() {
                         </div>
                       </Modal.Section>
                     </Modal>
+
+                    {/* Upgrade-to-Pro modal */}
+                    <Modal
+                      open={upgradeModal.open}
+                      onClose={() => setUpgradeModal((m) => ({ ...m, open: false }))}
+                      title="Upgrade to Pro"
+                      primaryAction={{
+                        content: "View Pro plan",
+                        onAction: () => cnav("/app/plan"),
+                      }}
+                      secondaryActions={[{
+                        content: "Maybe later",
+                        onAction: () => setUpgradeModal((m) => ({ ...m, open: false })),
+                      }]}
+                    >
+                      <Modal.Section>
+                        <VerticalStack gap="3">
+                          <Text as="p">{upgradeModal.reason}</Text>
+                          <Text as="p" color="subdued">Pro is $9.99/mo with a 14-day free trial. No credit card required during the trial.</Text>
+                        </VerticalStack>
+                      </Modal.Section>
+                    </Modal>
+
                   </div>
                 </Layout.Section>
               </Layout>

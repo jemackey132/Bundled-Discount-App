@@ -1,0 +1,14 @@
+name = "volume-discount-function"
+type = "product_discounts"
+title = "Volume Discount"
+api_version = "unstable"
+uid = "a1f3f0d2-c4b4-52b6-2b9f-4fc6bcf94d5d9d2d579b"
+
+[build]
+command = ""
+path = "dist/function.wasm"
+
+[[targeting]]
+target = "purchase.product-discount.run"
+input_query = "src/input.graphql"
+export = "run"

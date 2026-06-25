@@ -2,6 +2,7 @@ name = "super-customize-bundle-ext"
 type = "cart_transform"
 title = "cart transform"
 api_version = "unstable"
+uid = "b5690630-b6c7-1034-2fd3-813d4065df1cd8147377"
 
 [build]
 command = ""

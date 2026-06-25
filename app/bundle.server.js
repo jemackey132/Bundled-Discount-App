@@ -9,7 +9,10 @@ import { sign } from "crypto";
 
 export async function createProduct(data, graphql) {
   console.log(data);
-  const response = await graphql(
+
+  // Step 1: Create product without variants.
+  // Shopify 2025-01+ removed `variants` from ProductInput — use productVariantsBulkUpdate instead.
+  const createResponse = await graphql(
     `
       mutation CreateProductBundle($input: ProductInput!) {
         productCreate(input: $input) {
@@ -17,19 +20,13 @@ export async function createProduct(data, graphql) {
             id
             title
             handle
-            variants(first: 10) {
+            variants(first: 1) {
               edges {
-                node {
-                  id
-                  price
-                }
+                node { id }
               }
             }
           }
-          userErrors {
-            field
-            message
-          }
+          userErrors { field message }
         }
       }
     `,
@@ -39,24 +36,65 @@ export async function createProduct(data, graphql) {
           title: data.title,
           status: data.status,
           tags: ["super-bundle"],
-          variants: [
-            {
-              price: data.price,
-              compareAtPrice: data.compare_price,
-            },
-          ],
         },
       },
     }
   );
 
-  const {
-    data: {
-      productCreate: { product },
-    },
-  } = await response.json();
+  const createData = await createResponse.json();
+  const createErrors = createData.data?.productCreate?.userErrors;
+  if (createErrors?.length) {
+    console.error("productCreate errors:", createErrors);
+    throw new Error(createErrors[0].message);
+  }
 
-  return product;
+  const product = createData.data.productCreate.product;
+  const defaultVariantId = product.variants.edges[0]?.node?.id;
+
+  // Step 2: Update the default variant's price via productVariantsBulkUpdate.
+  let finalPrice = String(data.price ?? 0);
+  if (defaultVariantId) {
+    const updateResponse = await graphql(
+      `
+        mutation UpdateBundleVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+          productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+            productVariants { id price compareAtPrice }
+            userErrors { field message }
+          }
+        }
+      `,
+      {
+        variables: {
+          productId: product.id,
+          variants: [
+            {
+              id: defaultVariantId,
+              price: String(data.price ?? 0),
+              compareAtPrice: data.compare_price ? String(data.compare_price) : null,
+            },
+          ],
+        },
+      }
+    );
+
+    const updateData = await updateResponse.json();
+    const updateErrors = updateData.data?.productVariantsBulkUpdate?.userErrors;
+    if (updateErrors?.length) {
+      console.error("productVariantsBulkUpdate errors:", updateErrors);
+    }
+    const updatedVariant = updateData.data?.productVariantsBulkUpdate?.productVariants?.[0];
+    if (updatedVariant) finalPrice = updatedVariant.price;
+  }
+
+  // Return same shape the bundle form action expects
+  return {
+    id: product.id,
+    title: product.title,
+    handle: product.handle,
+    variants: {
+      edges: [{ node: { id: defaultVariantId, price: finalPrice } }],
+    },
+  };
 }
 
 export async function updateProduct(data, graphql) {
@@ -261,31 +299,32 @@ export async function attachMedia(data, graphql) {
 
 export async function checkBundleItem(apidata, graphql) {
   try {
-    const response = await graphql.query({
-      data: {
-        query: `query getBundleItem($id: ID!){
-          order(id: $id) {
-            lineItems(first: 10) {
-              nodes {
-                lineItemGroup {
-                  id
-                  quantity
-                  title
-                }
+    const response = await graphql(
+      `query getBundleItem($id: ID!) {
+        order(id: $id) {
+          lineItems(first: 10) {
+            nodes {
+              lineItemGroup {
+                id
+                quantity
+                title
               }
             }
           }
-        }`,
+        }
+      }`,
+      {
         variables: {
           id: `gid://shopify/Order/${apidata.id}`,
         },
-      },
-    });
+      }
+    );
 
-    console.log(response.body.data.order.lineItems.nodes);
-    return response.body.data.order.lineItems.nodes;
+    const { data: { order } } = await response.json();
+    return order?.lineItems?.nodes ?? [];
   } catch (error) {
     console.error("Error:", error);
+    return [];
   }
 }
 
@@ -556,5 +595,74 @@ export async function updateBundle(id, data) {
   });
   if (!bundle) return [];
   return bundle;
+}
+
+const DEFAULT_TRANSLATIONS = {
+  add_to_cart: "Add to cart",
+  bundle_discount: "Bundle discount",
+  save_badge: "Save {percent}%",
+};
+
+export function parseTranslations(raw) {
+  try {
+    const parsed = JSON.parse(raw || "{}");
+    return { ...DEFAULT_TRANSLATIONS, ...parsed };
+  } catch {
+    return { ...DEFAULT_TRANSLATIONS };
+  }
+}
+
+export async function getSettings(shop) {
+  const settings = await db.bundleSettings.findUnique({ where: { shop } });
+  if (!settings) {
+    // Return defaults — row will be created on first save
+    return {
+      subscriptions_enabled: false,
+      track_inventory: false,
+      track_inventory_mode: "disabled",
+      button_action: "cart",
+      variant_selector: "color_swatch",
+      product_pricing: "final_price",
+      discount_application: "when_click",
+      discount_combination: "when_click",
+      translations: DEFAULT_TRANSLATIONS,
+    };
+  }
+  return {
+    ...settings,
+    translations: parseTranslations(settings.translations),
+  };
+}
+
+export async function saveSettings(shop, data) {
+  const { translations, ...rest } = data;
+  const payload = {
+    ...rest,
+    ...(translations !== undefined
+      ? { translations: JSON.stringify(translations) }
+      : {}),
+  };
+  return db.bundleSettings.upsert({
+    where: { shop },
+    update: payload,
+    create: { shop, ...payload },
+  });
+}
+
+export async function deleteBundle(id) {
+  await db.bundle.delete({ where: { id: parseInt(id) } });
+}
+
+export async function archiveProduct(gid, graphql) {
+  const response = await graphql(
+    `mutation productUpdate($input: ProductInput!) {
+      productUpdate(input: $input) {
+        product { id status }
+        userErrors { field message }
+      }
+    }`,
+    { variables: { input: { id: gid, status: "ARCHIVED" } } }
+  );
+  return response.json();
 }
 
