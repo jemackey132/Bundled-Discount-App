@@ -1,8 +1,1 @@
-[phases.install]
-cmds = ["npm install"]
-
-[phases.build]
-cmds = ["npx prisma generate && npm run build"]
-
-[start]
-cmd = "npx prisma migrate deploy && npm run start"
+# Nixpacks config intentionally left minimal — Dockerfile is used for build/start
