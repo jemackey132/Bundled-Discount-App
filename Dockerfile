@@ -5,10 +5,6 @@ WORKDIR /app
 COPY . .
 
 RUN npm install
-RUN npm run build
+RUN npx prisma generate && npm run build
 
-# You'll probably want to remove this in production, it's here to make it easier to test things!
-RUN rm prisma/dev.sqlite
-RUN npx prisma migrate dev --name init
-
-CMD ["npm", "run", "start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]
