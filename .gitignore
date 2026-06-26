@@ -1,5 +1,11 @@
 node_modules
 
+# Website lives in its own repo — don't track here
+website/
+
+# macOS
+.DS_Store
+
 /.cache
 /build
 /app/build

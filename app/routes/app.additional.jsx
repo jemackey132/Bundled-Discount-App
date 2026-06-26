@@ -295,7 +295,7 @@ export default function AdditionalPage() {
           </Badge>
         </div>
       ),
-      type: <div style={{ width: "max-content" }}><Badge>Fixed Bundle</Badge></div>,
+      type: <div style={{ width: "max-content" }} className="type-badge-bundle"><Badge>Fixed Bundle</Badge></div>,
       discount:
         bundle.bundle_discount_type === "percentage"
           ? `${bundle.bundle_discount_value}% off`
@@ -320,7 +320,7 @@ export default function AdditionalPage() {
           </Badge>
         </div>
       ),
-      type: <div style={{ width: "max-content" }}><Badge tone="info">Volume Discount</Badge></div>,
+      type: <div style={{ width: "max-content" }} className="type-badge-volume"><Badge tone="info">Volume Discount</Badge></div>,
       discount: d.tiers?.length
         ? `${d.tiers[0].min_quantity}+ → ${d.tiers[0].discount_type === "percentage" ? `${d.tiers[0].discount_value}%` : `$${d.tiers[0].discount_value}`} off`
         : "—",
@@ -351,7 +351,7 @@ export default function AdditionalPage() {
           </Badge>
         </div>
       ),
-      type: <div style={{ width: "max-content" }}><Badge tone="warning">Buy X Get Y</Badge></div>,
+      type: <div style={{ width: "max-content" }} className="type-badge-bogo"><Badge tone="warning">Buy X Get Y</Badge></div>,
       discount: `${b.discount_value === 100 ? "Free" : `${b.discount_value}% off`}`,
     }));
 
@@ -964,32 +964,34 @@ export default function AdditionalPage() {
                         <Text as="h1" variant="headingLg">Analytics</Text>
 
                         {/* ── KPI cards ── */}
-                        <HorizontalGrid columns={4} gap="4">
-                          <Card>
-                            <VerticalStack gap="2" inlineAlign="center">
-                              <Text variant="bodySm" color="subdued" as="p">Total sales</Text>
-                              <Text variant="headingLg" as="p">${saleCount.toLocaleString()}</Text>
-                            </VerticalStack>
-                          </Card>
-                          <Card>
-                            <VerticalStack gap="2" inlineAlign="center">
-                              <Text variant="bodySm" color="subdued" as="p">Bundles sold</Text>
-                              <Text variant="headingLg" as="p">{orderCount.toLocaleString()}</Text>
-                            </VerticalStack>
-                          </Card>
-                          <Card>
-                            <VerticalStack gap="2" inlineAlign="center">
-                              <Text variant="bodySm" color="subdued" as="p">Total views</Text>
-                              <Text variant="headingLg" as="p">{viewCount.toLocaleString()}</Text>
-                            </VerticalStack>
-                          </Card>
-                          <Card>
-                            <VerticalStack gap="2" inlineAlign="center">
-                              <Text variant="bodySm" color="subdued" as="p">Total clicks</Text>
-                              <Text variant="headingLg" as="p">{clickCount.toLocaleString()}</Text>
-                            </VerticalStack>
-                          </Card>
-                        </HorizontalGrid>
+                        <div className="sb-kpi-grid">
+                          <HorizontalGrid columns={4} gap="4">
+                            <Card>
+                              <VerticalStack gap="2" inlineAlign="center">
+                                <Text variant="bodySm" color="subdued" as="p">Total sales</Text>
+                                <Text variant="headingLg" as="p">${saleCount.toLocaleString()}</Text>
+                              </VerticalStack>
+                            </Card>
+                            <Card>
+                              <VerticalStack gap="2" inlineAlign="center">
+                                <Text variant="bodySm" color="subdued" as="p">Bundles sold</Text>
+                                <Text variant="headingLg" as="p">{orderCount.toLocaleString()}</Text>
+                              </VerticalStack>
+                            </Card>
+                            <Card>
+                              <VerticalStack gap="2" inlineAlign="center">
+                                <Text variant="bodySm" color="subdued" as="p">Total views</Text>
+                                <Text variant="headingLg" as="p">{viewCount.toLocaleString()}</Text>
+                              </VerticalStack>
+                            </Card>
+                            <Card>
+                              <VerticalStack gap="2" inlineAlign="center">
+                                <Text variant="bodySm" color="subdued" as="p">Total clicks</Text>
+                                <Text variant="headingLg" as="p">{clickCount.toLocaleString()}</Text>
+                              </VerticalStack>
+                            </Card>
+                          </HorizontalGrid>
+                        </div>
 
                         {/* ── Sales & Orders over time ── */}
                         <Card>
@@ -1002,8 +1004,8 @@ export default function AdditionalPage() {
                                     <AreaChart data={timeSeries} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                                       <defs>
                                         <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                                          <stop offset="5%" stopColor="#008060" stopOpacity={0.15} />
-                                          <stop offset="95%" stopColor="#008060" stopOpacity={0} />
+                                          <stop offset="5%" stopColor="#FFD451" stopOpacity={0.35} />
+                                          <stop offset="95%" stopColor="#FFD451" stopOpacity={0} />
                                         </linearGradient>
                                       </defs>
                                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -1012,8 +1014,8 @@ export default function AdditionalPage() {
                                       <YAxis yAxisId="orders" orientation="right" tick={{ fontSize: 11 }} width={36} allowDecimals={false} />
                                       <Tooltip formatter={(value, name) => name === "sales" ? [`$${value}`, "Sales"] : [value, "Orders"]} />
                                       <Legend />
-                                      <Area yAxisId="sales" type="monotone" dataKey="sales" stroke="#008060" fill="url(#colorSales)" strokeWidth={2} dot={false} />
-                                      <Area yAxisId="orders" type="monotone" dataKey="orders" stroke="#2c6ecb" fill="none" strokeWidth={2} dot={false} strokeDasharray="4 2" />
+                                      <Area yAxisId="sales" type="monotone" dataKey="sales" stroke="#e6b800" fill="url(#colorSales)" strokeWidth={2.5} dot={false} />
+                                      <Area yAxisId="orders" type="monotone" dataKey="orders" stroke="#141514" fill="none" strokeWidth={2} dot={false} strokeDasharray="4 2" />
                                     </AreaChart>
                                   </ResponsiveContainer>
                                 </div>
@@ -1048,8 +1050,8 @@ export default function AdditionalPage() {
                                         <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
                                         <Tooltip formatter={(v, name) => name === "revenue" ? [`$${v}`, "Revenue"] : [v, "Orders"]} />
                                         <Legend />
-                                        <Bar dataKey="revenue" fill="#008060" radius={[0, 4, 4, 0]} />
-                                        <Bar dataKey="orders" fill="#2c6ecb" radius={[0, 4, 4, 0]} />
+                                        <Bar dataKey="revenue" fill="#FFD451" radius={[0, 4, 4, 0]} />
+                                        <Bar dataKey="orders" fill="#141514" radius={[0, 4, 4, 0]} />
                                       </BarChart>
                                     </ResponsiveContainer>
                                   </div>
@@ -1085,9 +1087,9 @@ export default function AdditionalPage() {
                                         <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                                         <Tooltip />
                                         <Legend />
-                                        <Bar dataKey="Views" fill="#b5d4f1" radius={[4, 4, 0, 0]} />
-                                        <Bar dataKey="Clicks" fill="#2c6ecb" radius={[4, 4, 0, 0]} />
-                                        <Bar dataKey="Orders" fill="#008060" radius={[4, 4, 0, 0]} />
+                                        <Bar dataKey="Views" fill="#fff3c4" radius={[4, 4, 0, 0]} />
+                                        <Bar dataKey="Clicks" fill="#FFD451" radius={[4, 4, 0, 0]} />
+                                        <Bar dataKey="Orders" fill="#141514" radius={[4, 4, 0, 0]} />
                                       </BarChart>
                                     </ResponsiveContainer>
                                   </div>

@@ -543,7 +543,145 @@ box-shadow: 0px 0px 8px 0px rgba(0, 0, 0, 0.25);
 
 .analytics-tab-main {
   margin-top: 16px;
+}
 
+/* ══════════════════════════════════════════════════
+   SUPER BUNDLE BRAND REFRESH
+   ══════════════════════════════════════════════════ */
+
+/* ── Fix home-card: remove broken fixed dimensions ── */
+.home-card {
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* ── KPI stat cards: yellow top accent bar ────────── */
+.sb-kpi-grid > .Polaris-Box {
+  border-top: 3px solid #FFD451 !important;
+  border-radius: 11px !important;
+  overflow: hidden !important;
+}
+
+/* Make KPI numbers pop */
+.sb-kpi-grid .Polaris-Text--headingLg {
+  font-size: 30px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.5px !important;
+  line-height: 36px !important;
+}
+
+.sb-kpi-grid .Polaris-Text--bodySm {
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.8px !important;
+  font-weight: 600 !important;
+}
+
+/* ── Home tab stat cards: same yellow accent ─────── */
+.hometab-right-div .Polaris-Grid-Cell > .Polaris-Box {
+  border-top: 3px solid #FFD451 !important;
+  border-radius: 11px !important;
+  overflow: hidden !important;
+}
+
+/* ── Offers table: yellow left bar on row hover ───── */
+.Polaris-IndexTable__TableRow:hover .Polaris-IndexTable__TableCell:first-child,
+.Polaris-IndexTable__TableRow--hovered .Polaris-IndexTable__TableCell:first-child {
+  box-shadow: inset 3px 0 0 #FFD451;
+}
+
+/* ── Type badges in Offers table ─────────────────── */
+.type-badge-bundle .Polaris-Badge {
+  background: #141514 !important;
+  border-color: #141514 !important;
+  color: #fff !important;
+}
+.type-badge-bundle .Polaris-Badge .Polaris-Text--bodySm {
+  color: #fff !important;
+}
+
+.type-badge-volume .Polaris-Badge {
+  background: #e6f7f2 !important;
+  border-color: #008060 !important;
+}
+.type-badge-volume .Polaris-Badge .Polaris-Text--bodySm {
+  color: #008060 !important;
+  font-weight: 600 !important;
+}
+
+.type-badge-bogo .Polaris-Badge {
+  background: #fff8e6 !important;
+  border-color: #b67e00 !important;
+}
+.type-badge-bogo .Polaris-Badge .Polaris-Text--bodySm {
+  color: #b67e00 !important;
+  font-weight: 600 !important;
+}
+
+/* ── Yellow focus ring on all text inputs ────────── */
+.Polaris-TextField--focus .Polaris-TextField__Backdrop,
+.Polaris-TextField:focus-within .Polaris-TextField__Backdrop {
+  border-color: #FFD451 !important;
+  box-shadow: 0 0 0 3px rgba(255, 212, 81, 0.25) !important;
+}
+
+/* ── Create offer popup: hover with yellow accent ─── */
+.bundle-popup .Polaris-Link {
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(0,0,0,0.12);
+  border: 1.5px solid transparent !important;
+  padding: 10px 20px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease !important;
+}
+.bundle-popup .Polaris-Link:hover {
+  background: #fffdf0 !important;
+  border-color: #FFD451 !important;
+  box-shadow: 0 4px 16px rgba(255, 212, 81, 0.3) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* ── Active tab: bolder font weight ──────────────── */
+.Polaris-Tabs__Tab--active .Polaris-Text--bodySm {
+  font-weight: 700 !important;
+  color: #141514 !important;
+}
+
+/* ── Offers section header row ───────────────────── */
+.bundle-tab-main-buttons {
+  padding: 16px 12px 20px !important;
+  margin-bottom: 0 !important;
+  border-bottom: 1px solid #e1e3e5;
+}
+
+/* ── Analytics chart section: tighter heading ─────── */
+.analytics-tab-main .Polaris-Text--headingMd {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+}
+
+/* ── Form pages: yellow accent on select dropdowns ── */
+.Polaris-Select:focus-within .Polaris-Select__Content {
+  border-color: #FFD451 !important;
+}
+
+/* ── Settings cards: subtle hover lift ───────────── */
+.settingtab-card .Polaris-Link > .Polaris-Box {
+  transition: box-shadow 0.12s ease, transform 0.12s ease !important;
+}
+.settingtab-card .Polaris-Link:hover > .Polaris-Box {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* ── Volume/BOGO form pages: tier row hover ──────── */
+.sb-tier-row:hover {
+  background: #fffdf0 !important;
+}
+
+/* ── Page-level background: slightly warmer ──────── */
+.Polaris-Frame__Main {
+  background: #f6f6f4 !important;
 }
 
 .analytics-filter-div {}
